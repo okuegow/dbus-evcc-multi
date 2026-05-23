@@ -1,8 +1,10 @@
 """Tests for the discovery + parsing half of the auto-migrator.
 
 We never touch a real /data/ filesystem - everything runs against tmp_path
-fixtures that fake a customer Cerbo layout.
+fixtures that fake a Cerbo layout.
 """
+from __future__ import annotations
+
 from pathlib import Path
 
 import pytest
