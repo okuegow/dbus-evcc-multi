@@ -76,7 +76,7 @@ python3 "$SCRIPT_DIR/setup_config.py" --config "$CONFIG" set-host "$host"
 echo "ONPREMISE/Host = $host gesetzt."
 
 # --- 4. VRM tunnel (optional) --------------------------------------------
-echo; echo "--- 4. VRM-Tunnel (Bedienfeld-Button) ---"
+echo; echo "--- 4. VRM-Tunnel (Control panel button) ---"
 printf "VRM-Tunnel aktivieren? [j/N] "; read -r ans
 case "${ans:-N}" in [jJyY]*) tunnel=yes ;; *) tunnel=no ;; esac
 if [ "$tunnel" = yes ]; then

@@ -1,84 +1,92 @@
 # dbus-evcc-multi
 
-**Auto-discovery bridge that exposes every [EVCC](https://evcc.io) loadpoint as
-its own EV-charger device on a Victron [Venus OS](https://github.com/victronenergy/venus)
-GX device (Cerbo GX, etc.).**
+**Bring your [EVCC](https://evcc.io) chargers into the Victron world.**
 
-One service on the GX device polls a remote EVCC instance and automatically
-publishes **all** of its loadpoints, each as its own
-`com.victronenergy.evcharger.http_id<NN>` D-Bus service — so they show up in
-the Victron GUI and the VRM portal. No per-loadpoint configuration: add a
-loadpoint in EVCC and it appears on the next poll.
+Run one small service on your Victron [Venus OS](https://github.com/victronenergy/venus)
+GX device (Cerbo GX & co.) and every loadpoint from your EVCC setup —
+wallbox, heat pump, heating rod, you name it — automatically shows up as its
+own EV charger in the Victron GUI and in the VRM portal. Live power, energy
+history, the works. No per-charger configuration: add a loadpoint in EVCC and
+it appears on the next poll.
 
-> EVCC itself does **not** run on the GX device — only this bridge does. EVCC
-> runs on a separate host (e.g. a Raspberry Pi) and is reached over HTTP.
+![Your EVCC chargers in the VRM dashboard](docs/img/vrm-dashboard.png)
 
-It also ships an optional **VRM "Bedienfeld" tunnel** that makes the EVCC web
-UI reachable through the VRM portal button without a VPN, and a guided
-**one-command installer** (`setup.sh`).
+> EVCC keeps running where it already runs (a Raspberry Pi, a NUC, …). This
+> bridge just connects to it over the network and mirrors its loadpoints onto
+> the GX device — nothing about your EVCC install changes.
 
-## Features
+## Why you'll like it
 
-- **Auto-discovery** — one poll of EVCC's `/api/state` publishes every
-  loadpoint; no manual per-loadpoint setup.
-- **Stable DeviceInstances** — title→DI mapping is persisted in `state.json`,
-  so VRM history survives restarts and EVCC reordering.
-- **Single, efficient process** — one HTTP request per poll for all loadpoints,
-  keep-alive, and D-Bus `ItemsChanged` batching to keep CPU low on ARM GX
-  hardware.
-- **Resilient** — if EVCC is unreachable the bridge logs a warning and keeps
-  the last-known services alive instead of crashing; a per-loadpoint
-  `try/except` keeps one bad loadpoint from taking down the rest.
-- **Migration** — an auto-migrator imports legacy single-loadpoint
-  `dbus-evcc-*` installs into `state.json` without losing their DeviceInstances.
-- **Optional VRM UI tunnel** (`dbus-vrm-tunnel/`) — reach the EVCC web UI via
-  the VRM portal "Bedienfeld" button (default off).
-- **Guided installer** (`setup.sh`) — installs everything, migrates, prompts
-  for the EVCC host and the optional tunnel, and starts the services.
+- 🔌 **Everything in one place** — your chargers live next to your batteries,
+  PV and grid data in Victron VRM, including per-charger energy history.
+- ✨ **Zero fuss** — point it at your EVCC host once; new loadpoints appear by
+  themselves and keep a stable identity across restarts.
+- 📈 **Real numbers** — live power per loadpoint and energy logged to VRM.
 
-## Requirements
+![Per-charger energy usage in VRM](docs/img/vrm-energy-usage.png)
 
-- A Victron Venus OS GX device (Cerbo GX or similar) with root SSH access and
-  daemontools (`svc`/`svstat`), as shipped by Venus OS.
-- A reachable EVCC instance on the LAN (its `/api/state` HTTP endpoint).
-- Python 3 on the GX device (ships with Venus OS), with `dbus`/`gi` and Victron's
-  `velib_python` (present on Venus OS).
+- 🖥️ **Optional: open the EVCC web UI from VRM** — flip one switch and a
+  **"Control panel"** button appears on each charger in VRM that opens the live
+  EVCC interface through the VRM relay, no VPN needed.
 
-## Installation
+![The Control panel button in VRM](docs/img/vrm-control-panel.png)
 
-### Guided (recommended, one command)
+- 🛟 **Reliable & friendly** — if EVCC is briefly unreachable the bridge just
+  waits and keeps showing the last values instead of falling over, and a guided
+  installer walks you through setup in one go.
 
-```bash
-# upload, extract, run the guided setup (interactive -> needs ssh -t)
-scp dbus-evcc-multi-v2.3.tar.gz root@<gx-device>:/tmp/
-ssh -t root@<gx-device> 'tar xzf /tmp/dbus-evcc-multi-v2.3.tar.gz -C /data && \
-  /data/dbus-evcc-multi/setup.sh'
+## What you need
+
+- A Victron Venus OS GX device (Cerbo GX or similar) you can reach over SSH.
+- An EVCC instance on your network (this bridge reads its `/api/state`).
+- That's it — Venus OS already ships everything else the bridge uses.
+
+## Install
+
+The guided installer does everything: it sets up the bridge (and the optional
+VRM tunnel), migrates an older single-charger setup if it finds one, asks for
+your EVCC address, and starts things up.
+
+**1. Log into your GX device once:**
+
+```sh
+ssh root@<gx-device>
 ```
 
-`setup.sh` installs the bridge (and the VRM-tunnel service), auto-detects and
-migrates a legacy single-loadpoint install (with a confirmation prompt), asks
-for the EVCC host and whether to enable the VRM tunnel, then starts the
-services. Re-run it any time to reconfigure (for example to enable the tunnel
-later) — it restarts the services so the new configuration is applied.
+**2. Then, on the device, download and run the installer:**
 
-### Manual
-
-```bash
-# 1. extract under /data
-scp dbus-evcc-multi-v2.3.tar.gz root@<gx-device>:/data/
-ssh root@<gx-device> 'cd /data && tar xzf dbus-evcc-multi-v2.3.tar.gz'
-
-# 2. set the EVCC host
-ssh root@<gx-device> 'vi /data/dbus-evcc-multi/config.ini'   # ONPREMISE/Host = <ip>:7070
-
-# 3. install and watch the log
-ssh root@<gx-device> '/data/dbus-evcc-multi/install.sh'
-ssh root@<gx-device> 'tail -F /data/log/dbus-evcc-multi/current | tai64nlocal'
+```sh
+wget -O /tmp/dbus-evcc-multi.tar.gz \
+  https://github.com/okuegow/dbus-evcc-multi/releases/download/v2.3/dbus-evcc-multi-v2.3.tar.gz
+tar xzf /tmp/dbus-evcc-multi.tar.gz -C /data
+/data/dbus-evcc-multi/setup.sh
 ```
 
-On first install the service is created in a "down" state so you can set the
-config before it starts. `install.sh` registers itself in `/data/rc.local` so
-it survives Venus OS firmware updates.
+`setup.sh` asks a few simple questions (your EVCC host, and whether to enable
+the VRM Control panel) and then starts everything. Run it again any time to
+change settings later. After a minute your chargers appear in VRM. 🎉
+
+<details>
+<summary>Prefer to do it by hand? (manual install)</summary>
+
+After logging in (step 1 above), run on the device:
+
+```sh
+# download & extract
+wget -O /tmp/dbus-evcc-multi.tar.gz \
+  https://github.com/okuegow/dbus-evcc-multi/releases/download/v2.3/dbus-evcc-multi-v2.3.tar.gz
+tar xzf /tmp/dbus-evcc-multi.tar.gz -C /data
+
+# set your EVCC address, then install and watch the log
+vi /data/dbus-evcc-multi/config.ini          # ONPREMISE/Host = <ip>:7070
+/data/dbus-evcc-multi/install.sh
+tail -F /data/log/dbus-evcc-multi/current | tai64nlocal
+```
+
+On a first install the service starts in a "down" state so you can set the
+config before it runs. `install.sh` registers itself so it survives Venus OS
+firmware updates.
+</details>
 
 ## Configuration (`config.ini`)
 
@@ -86,90 +94,78 @@ it survives Venus OS firmware updates.
 |---|---|---|
 | `DEFAULT` | `PollSeconds` | Poll interval in seconds (default 15) |
 | `DEFAULT` | `DeviceInstanceRangeStart` / `End` | DeviceInstance range (default 40–59) |
-| `ONPREMISE` | `Host` | `<ip>:<port>` of the EVCC host |
-| `VRM_TUNNEL` | `Enabled` | Enable the VRM UI tunnel (default `false`) |
-| `VRM_TUNNEL` | `AdvertiseIp` | Non-loopback IP VRM tunnels to (the GX or EVCC host LAN IP) |
-| `VRM_TUNNEL` | `EvccTarget` | Where the rewrite proxy forwards (e.g. `127.0.0.1:7070`) |
-| `VRM_TUNNEL` | `ProxyPort` | Local rewrite-proxy port (default `8099`) |
+| `ONPREMISE` | `Host` | `<ip>:<port>` of your EVCC host |
+| `VRM_TUNNEL` | `Enabled` | Show the VRM "Control panel" button (default `false`) |
+| `VRM_TUNNEL` | `AdvertiseIp` | The LAN IP VRM should tunnel to (the GX or EVCC host) |
+| `VRM_TUNNEL` | `EvccTarget` | Where the proxy forwards (e.g. `127.0.0.1:7070`) |
+| `VRM_TUNNEL` | `ProxyPort` | Local proxy port (default `8099`) |
 
-## Migrating from single-loadpoint dbus-evcc installs
+The guided `setup.sh` fills these in for you.
 
-Older setups run one bridge per loadpoint under `/data/dbus-evcc-<name>/`, each
-with a fixed DeviceInstance. The auto-migrator imports those mappings:
+## Coming from an older single-charger setup?
 
-```bash
-# dry run, then interactive (or --auto), optionally remove the old installs
-python3 /data/dbus-evcc-multi/migrate_from_lp.py --dry-run
+Earlier setups ran one bridge per charger under `/data/dbus-evcc-<name>/`. The
+installer detects those and offers to migrate them so your chargers keep their
+existing VRM history. You can also run the migrator yourself (after logging in):
+
+```sh
+python3 /data/dbus-evcc-multi/migrate_from_lp.py --dry-run        # preview
 python3 /data/dbus-evcc-multi/migrate_from_lp.py --auto --uninstall-old
 ```
 
-It scans `/data/dbus-evcc-*` (excluding `dbus-evcc-multi/`), reads each
-`config.ini`, fetches the current EVCC loadpoint titles, proposes a
-`title → DeviceInstance` mapping, and writes it to `state.json` on
-confirmation. The guided `setup.sh` runs this for you when it detects a legacy
-install.
+It reads each old config, matches it to the current EVCC loadpoint titles, and
+writes the mapping to `state.json`.
 
-## Behaviour notes
+## Good to know
 
-- **Loadpoint added in EVCC** → a new service with a free DeviceInstance from
-  the range, recorded in `state.json`, on the next poll.
-- **Loadpoint reordered in EVCC** → no effect; the DeviceInstance stays bound
-  to the title.
-- **Loadpoint renamed in EVCC** → the old title is marked offline
-  (`/Connected = 0`) and the new title gets a new DeviceInstance. The old VRM
-  history is preserved but no longer updated. Avoid renaming where possible.
-- **EVCC unreachable** → logged as a warning; existing services keep their last
-  values and are not torn down.
-- **Duplicate titles in EVCC** → logged as an error and skipped (they would
-  collapse identities). Rename them in EVCC.
-
-## VRM UI tunnel (optional)
-
-When `[VRM_TUNNEL] Enabled = true`, each loadpoint is advertised with
-`/Mgmt/Connection = "Modbus TCP <AdvertiseIp>"`, which makes the VRM portal show
-a "Bedienfeld" button for it. The bundled `dbus-vrm-tunnel` service then
-path-rewrites EVCC's `/login.htm` and DNATs `<AdvertiseIp>:80` to the EVCC web
-UI, so the button opens the live EVCC interface through the VRM relay — no VPN
-needed. Default is off; the bridge behaves exactly as before.
+- **Add a loadpoint in EVCC** → it appears automatically on the next poll with
+  a stable DeviceInstance.
+- **Reorder loadpoints in EVCC** → no effect; identity stays with the title.
+- **Rename a loadpoint in EVCC** → the old name is marked offline and the new
+  name starts fresh (its own VRM history). Best avoided where possible.
+- **EVCC unreachable** → logged as a warning; existing chargers keep their last
+  values and nothing is torn down.
 
 ## Diagnostics
 
-```bash
-svstat /service/dbus-evcc-multi                                   # service status
-dbus -y | grep evcharger                                          # list services
-dbus -y com.victronenergy.evcharger.http_id40 / GetItems          # all values of a loadpoint
-tail -F /data/log/dbus-evcc-multi/current | tai64nlocal           # readable log tail
+```sh
+svstat /service/dbus-evcc-multi                            # is it running?
+dbus -y | grep evcharger                                   # list the chargers
+tail -F /data/log/dbus-evcc-multi/current | tai64nlocal    # readable log
 ```
 
-Enable debug logging by appending `--debug` to the `python3 .../dbus-evcc.py`
-line in `service/run`, then `svc -t /service/dbus-evcc-multi`.
+## How the VRM "Control panel" works (optional feature)
+
+When enabled, each charger is advertised so that VRM shows a **Control panel**
+button for it. A small bundled service then makes the VRM relay forward to your
+EVCC web UI (it rewrites EVCC's `/login.htm` and routes the connection to EVCC),
+so the button opens the live EVCC interface — without a VPN. It's off by default
+and changes nothing until you turn it on.
 
 ## Development
 
-```bash
+```sh
 python3 -m venv .venv && . .venv/bin/activate
 pip install -r requirements-dev.txt
 python -m pytest -q          # ~177 tests
 ```
 
-The pure logic (config parsing, sync, migration, the tunnel's request handling)
-is unit-tested on a normal machine; the D-Bus/`gi`/`iptables` I/O is exercised
-on real Venus OS hardware. CI runs the test suite on every push.
+The pure logic is unit-tested on a normal machine; the Venus OS D-Bus / iptables
+parts are exercised on real hardware. CI runs the tests and shellcheck on every
+push.
 
 ## Credits & lineage
 
 This project grew out of the Venus-OS dbus-evcc lineage:
 [JuWorkshop/dbus-evsecharger](https://github.com/JuWorkshop/dbus-evsecharger)
 → [SamuelBrucksch/dbus-evcc](https://github.com/SamuelBrucksch/dbus-evcc)
-→ this multi-loadpoint, auto-discovery rewrite.
-
-- Multi-service-in-one-driver pattern: Victron community thread by *mvader*.
-- Logging pattern: Victron community documentation thread.
+→ this multi-loadpoint, auto-discovery rewrite. Thanks also to the Victron
+community for the multi-service and logging patterns.
 
 ## License
 
 [MIT](LICENSE) © 2026 Oliver Kügow.
 
-Note: the upstream repositories listed above do not carry an explicit license.
-This repository licenses the original work in it under MIT and credits the
-lineage; it is not affiliated with or endorsed by EVCC or Victron Energy.
+Not affiliated with or endorsed by EVCC or Victron Energy. The upstream
+repositories above carry no explicit license; this repository licenses the
+original work in it under MIT and credits the lineage.

@@ -118,7 +118,7 @@ def resolve_tunnel_settings(cp: configparser.ConfigParser) -> TunnelSettings:
 def mgmt_connection_string(tunnel: TunnelSettings) -> str:
     """The /Mgmt/Connection value each loadpoint advertises. With the tunnel
     on, the 'Modbus TCP <ip>' prefix is what makes generate_authorized_keys.sh
-    whitelist <ip>:80 so the VRM 'Bedienfeld' button works."""
+    whitelist <ip>:80 so the VRM 'Control panel' button works."""
     if tunnel.enabled:
         return "Modbus TCP %s" % tunnel.advertise_ip
     return "EVCC REST API"

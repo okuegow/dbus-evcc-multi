@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""dbus-vrm-tunnel - VRM "Bedienfeld" tunnel for the EVCC web UI.
+"""dbus-vrm-tunnel - VRM "Control panel" tunnel for the EVCC web UI.
 
 Reads the shared [VRM_TUNNEL] section of dbus-evcc-multi's config.ini. When
 enabled, runs a /login.htm rewrite proxy + iptables DNAT so the VRM portal

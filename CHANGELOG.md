@@ -18,7 +18,7 @@ First public release.
   tunnel, and (re)starts the services so configuration changes are applied.
 - **`setup_config.py`**: case-preserving `config.ini` writers plus a small CLI
   (`set-host`, `set-tunnel`), reusing the bridge's own validation.
-- **Optional VRM "Bedienfeld" tunnel** (`dbus-vrm-tunnel/`): advertises each
+- **Optional VRM "Control panel" tunnel** (`dbus-vrm-tunnel/`): advertises each
   loadpoint as `Modbus TCP <AdvertiseIp>` and runs a `/login.htm` rewrite proxy
   + iptables DNAT so the EVCC web UI is reachable through the VRM portal button
   without a VPN. Default off.
