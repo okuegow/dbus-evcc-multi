@@ -1,0 +1,2 @@
+#!/bin/sh
+exec multilog t s100000 n10 /data/log/dbus-evcc-multi

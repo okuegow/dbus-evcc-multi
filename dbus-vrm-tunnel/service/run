@@ -1,0 +1,6 @@
+#!/bin/sh
+# POSIX-safe (BusyBox ash on Venus OS). Reads the SHARED config.ini.
+SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" 2>/dev/null && pwd)
+
+exec 2>&1
+exec python3 "$SCRIPT_DIR/../dbus-vrm-tunnel.py"

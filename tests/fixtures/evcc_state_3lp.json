@@ -1,0 +1,40 @@
+{
+  "loadpoints": [
+    {
+      "title": "Wallbox",
+      "mode": "pv",
+      "connected": true,
+      "charging": false,
+      "chargePower": 0.0,
+      "chargeCurrents": [0, 0, 0],
+      "chargeVoltages": [230, 230, 230],
+      "effectiveMaxCurrent": 16,
+      "chargedEnergy": 0.0,
+      "chargeDuration": 0
+    },
+    {
+      "title": "Heizstab",
+      "mode": "pv",
+      "connected": true,
+      "charging": true,
+      "chargePower": 4500.0,
+      "chargeCurrents": [6.5, 6.5, 6.5],
+      "chargeVoltages": [230, 230, 230],
+      "effectiveMaxCurrent": 20,
+      "chargedEnergy": 1800.0,
+      "chargeDuration": 3600000000000
+    },
+    {
+      "title": "Heatpump",
+      "mode": "off",
+      "connected": false,
+      "charging": false,
+      "chargePower": 0.0,
+      "chargeCurrents": [0, 0, 0],
+      "chargeVoltages": [230, 230, 230],
+      "effectiveMaxCurrent": 16,
+      "chargedEnergy": 0.0,
+      "chargeDuration": 0
+    }
+  ]
+}

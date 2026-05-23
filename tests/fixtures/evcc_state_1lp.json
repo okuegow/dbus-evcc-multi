@@ -1,0 +1,16 @@
+{
+  "loadpoints": [
+    {
+      "title": "Heizstab",
+      "mode": "pv",
+      "connected": true,
+      "charging": true,
+      "chargePower": 1500.0,
+      "chargeCurrents": [6.5, 0, 0],
+      "chargeVoltages": [230, 230, 230],
+      "effectiveMaxCurrent": 20,
+      "chargedEnergy": 250.0,
+      "chargeDuration": 600000000000
+    }
+  ]
+}

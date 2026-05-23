@@ -1,0 +1,6 @@
+#!/bin/sh
+# POSIX-safe (works under BusyBox ash on Venus OS - `&>` is NOT POSIX).
+SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" 2>/dev/null && pwd)
+
+exec 2>&1
+exec python3 "$SCRIPT_DIR/../dbus-evcc.py"

@@ -1,0 +1,33 @@
+# Runtime artefacts
+state.json
+state.json.tmp
+state.json.bak
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Build artefacts
+dist/
+build/
+*.tar.gz
+*.egg-info/
+
+# Logs
+*.log

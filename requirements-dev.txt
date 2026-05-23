@@ -1,0 +1,5 @@
+# Test/development dependencies (the runtime needs only the stdlib + Venus OS's
+# dbus/gi/velib_python, which are not pip-installable and are mocked in tests).
+pytest>=7
+requests>=2
+requests-mock>=1.11

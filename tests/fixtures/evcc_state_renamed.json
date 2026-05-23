@@ -1,0 +1,6 @@
+{
+  "loadpoints": [
+    {"title": "Heater", "mode": "pv", "connected": true, "charging": true,
+     "chargePower": 1500, "chargeCurrents": [6.5, 0, 0]}
+  ]
+}

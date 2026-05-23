@@ -1,0 +1,9 @@
+{
+  "loadpoints": [
+    {"title": "Heatpump", "mode": "off", "connected": false, "charging": false},
+    {"title": "Heizstab", "mode": "pv", "connected": true, "charging": true,
+     "chargePower": 1500, "chargeCurrents": [6.5, 0, 0]},
+    {"title": "Wallbox", "mode": "pv", "connected": true, "charging": false,
+     "chargeCurrents": [0, 0, 0]}
+  ]
+}
