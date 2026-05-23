@@ -42,7 +42,7 @@ if [ "$FIRST_INSTALL" = "1" ]; then
     echo "Next steps:"
     echo "  1. Edit $SCRIPT_DIR/config.ini and set ONPREMISE/Host = <evcc-ip>:7070"
     echo "  2. If migrating from dbus-evcc-lp1: seed state.json BEFORE first start"
-    echo "       python3 $SCRIPT_DIR/seed_state.py \"Heizstab:56\""
+    echo "       python3 $SCRIPT_DIR/seed_state.py \"HeatingElement:56\""
     echo "  3. Activate the service (clears the 'down' flag and starts it):"
     echo "       rm $SCRIPT_DIR/service/down && svc -u /service/$SERVICE_NAME"
     echo "  4. tail -F /data/log/$SERVICE_NAME/current | tai64nlocal"

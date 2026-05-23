@@ -175,7 +175,7 @@ def discover_installations(data_dir: Path) -> List[LegacyInstall]:
     the operator needs to see those entries to know they exist.
 
     SF1: deduplicates symlinked aliases. If
-    `/data/dbus-evcc-current -> /data/dbus-evcc-heizstab` is a symlink to
+    `/data/dbus-evcc-current -> /data/dbus-evcc-heatingelement` is a symlink to
     a real legacy directory, both would otherwise produce installs sharing
     the same uninstall.sh - running --uninstall-old would invoke it twice.
     We canonicalize paths and keep only the first (sorted-name-order) hit

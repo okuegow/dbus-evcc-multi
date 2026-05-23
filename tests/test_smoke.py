@@ -36,7 +36,7 @@ def test_two_polls_full_cycle(tmp_path, requests_mock, monkeypatch):
     sync_.tick()
 
     state = json.loads((tmp_path / "state.json").read_text())
-    assert set(state.keys()) == {"Wallbox", "Heizstab", "Heatpump"}
+    assert set(state.keys()) == {"Wallbox", "HeatingElement", "Heatpump"}
     for di in state.values():
         assert 40 <= di <= 59
     for inst in instances.values():
@@ -75,7 +75,7 @@ def test_smoke_handles_evcc_drop_and_recover(tmp_path, requests_mock, monkeypatc
     # tick 1: 3 LPs
     requests_mock.get("http://evcc:7070/api/state", text=fixture_3lp)
     sync_.tick()
-    assert set(instances) == {"Wallbox", "Heizstab", "Heatpump"}
+    assert set(instances) == {"Wallbox", "HeatingElement", "Heatpump"}
 
     # tick 2: EVCC unreachable - nothing changes, no crash
     requests_mock.get(
@@ -83,7 +83,7 @@ def test_smoke_handles_evcc_drop_and_recover(tmp_path, requests_mock, monkeypatc
         exc=requests.exceptions.ConnectTimeout,
     )
     sync_.tick()
-    # tick 3: only Heizstab visible
+    # tick 3: only HeatingElement visible
     requests_mock.get("http://evcc:7070/api/state", text=fixture_1lp)
     sync_.tick()
     instances["Wallbox"].mark_disconnected.assert_called_once()

@@ -11,7 +11,7 @@ from dbus_service import (
 from evcc_api import Loadpoint
 
 
-def _make_svc(monkeypatch, deviceinstance=56, title="Heizstab"):
+def _make_svc(monkeypatch, deviceinstance=56, title="HeatingElement"):
     fake_vedbus = MagicMock()
     fake_vedbus.__enter__ = MagicMock(return_value=fake_vedbus)
     fake_vedbus.__exit__ = MagicMock(return_value=False)
@@ -89,7 +89,7 @@ def test_create_registers_mandatory_paths(monkeypatch):
 def test_update_disconnected_preserves_cumulative_counters(monkeypatch):
     svc, vedbus, _ = _make_svc(monkeypatch)
     vedbus.__getitem__.return_value = 0
-    lp = Loadpoint(title="Heizstab", connected=False, charging=False, mode="pv")
+    lp = Loadpoint(title="HeatingElement", connected=False, charging=False, mode="pv")
     svc.update(lp)
     sets_paths = [c.args[0] for c in vedbus.__setitem__.call_args_list]
     sets = dict(c.args for c in vedbus.__setitem__.call_args_list)
@@ -103,7 +103,7 @@ def test_update_disconnected_preserves_cumulative_counters(monkeypatch):
 def test_update_connected_not_charging(monkeypatch):
     svc, vedbus, _ = _make_svc(monkeypatch)
     vedbus.__getitem__.return_value = 0
-    lp = Loadpoint(title="Heizstab", connected=True, charging=False, mode="pv")
+    lp = Loadpoint(title="HeatingElement", connected=True, charging=False, mode="pv")
     svc.update(lp)
     sets = dict(c.args for c in vedbus.__setitem__.call_args_list)
     assert sets["/Status"] == STATUS_CONNECTED
@@ -113,7 +113,7 @@ def test_update_charging_uses_per_phase_voltages(monkeypatch):
     svc, vedbus, _ = _make_svc(monkeypatch)
     vedbus.__getitem__.return_value = 5
     lp = Loadpoint(
-        title="Heizstab", connected=True, charging=True, mode="pv",
+        title="HeatingElement", connected=True, charging=True, mode="pv",
         charge_power=4500.0,
         charge_currents=[6.5, 6.5, 6.5],
         charge_voltages=[229.0, 231.0, 232.5],
@@ -142,7 +142,7 @@ def test_update_charging_uses_per_phase_voltages(monkeypatch):
 def test_update_index_wraps_at_255(monkeypatch):
     svc, vedbus, _ = _make_svc(monkeypatch)
     vedbus.__getitem__.return_value = 255
-    lp = Loadpoint(title="Heizstab", connected=True, charging=True, mode="pv")
+    lp = Loadpoint(title="HeatingElement", connected=True, charging=True, mode="pv")
     svc.update(lp)
     sets = dict(c.args for c in vedbus.__setitem__.call_args_list)
     assert sets["/UpdateIndex"] == 0
@@ -151,7 +151,7 @@ def test_update_index_wraps_at_255(monkeypatch):
 def test_off_mode_sets_mode_manual(monkeypatch):
     svc, vedbus, _ = _make_svc(monkeypatch)
     vedbus.__getitem__.return_value = 0
-    lp = Loadpoint(title="Heizstab", connected=True, charging=False, mode="off")
+    lp = Loadpoint(title="HeatingElement", connected=True, charging=False, mode="off")
     svc.update(lp)
     sets = dict(c.args for c in vedbus.__setitem__.call_args_list)
     assert sets["/Mode"] == MODE_MANUAL
@@ -169,7 +169,7 @@ def test_mark_disconnected_sets_connected_zero(monkeypatch):
 def test_update_uses_context_manager_for_batched_itemschanged(monkeypatch):
     svc, vedbus, _ = _make_svc(monkeypatch)
     lp = Loadpoint(
-        title="Heizstab", connected=True, charging=True, mode="pv",
+        title="HeatingElement", connected=True, charging=True, mode="pv",
         charge_currents=[6.5, 0, 0],
     )
     vedbus.__getitem__.return_value = 0
@@ -209,7 +209,7 @@ def test_unknown_mode_falls_back_to_manual_with_start(monkeypatch):
     svc, vedbus, _ = _make_svc(monkeypatch)
     vedbus.__getitem__.return_value = 0
     lp = Loadpoint(
-        title="Heizstab", connected=True, charging=False, mode="now",
+        title="HeatingElement", connected=True, charging=False, mode="now",
     )
     svc.update(lp)
     sets = dict(c.args for c in vedbus.__setitem__.call_args_list)
@@ -224,7 +224,7 @@ def test_minpv_mode_treated_as_pv(monkeypatch):
     svc, vedbus, _ = _make_svc(monkeypatch)
     vedbus.__getitem__.return_value = 0
     lp = Loadpoint(
-        title="Heizstab", connected=True, charging=True, mode="minpv",
+        title="HeatingElement", connected=True, charging=True, mode="minpv",
     )
     svc.update(lp)
     sets = dict(c.args for c in vedbus.__setitem__.call_args_list)

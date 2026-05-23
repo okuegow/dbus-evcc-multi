@@ -23,7 +23,7 @@ def test_fetch_state_returns_loadpoints_1lp(requests_mock):
     assert len(lps) == 1
     lp = lps[0]
     assert isinstance(lp, Loadpoint)
-    assert lp.title == "Heizstab"
+    assert lp.title == "HeatingElement"
     assert lp.connected is True
     assert lp.charging is True
     assert lp.charge_power == 1500.0
@@ -40,7 +40,7 @@ def test_fetch_state_returns_loadpoints_3lp(requests_mock):
     client = EvccClient(host="evcc.local:7070")
     lps = client.fetch_loadpoints()
     titles = [lp.title for lp in lps]
-    assert titles == ["Wallbox", "Heizstab", "Heatpump"]
+    assert titles == ["Wallbox", "HeatingElement", "Heatpump"]
 
 
 def test_fetch_raises_on_http_error(requests_mock):

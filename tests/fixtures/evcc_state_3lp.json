@@ -13,7 +13,7 @@
       "chargeDuration": 0
     },
     {
-      "title": "Heizstab",
+      "title": "HeatingElement",
       "mode": "pv",
       "connected": true,
       "charging": true,

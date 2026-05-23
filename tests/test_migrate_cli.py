@@ -75,11 +75,11 @@ def test_bad_di_range_returns_2(tmp_path, capsys):
 # ----- Auto mode: happy path ----------------------------------------------
 
 def test_auto_mode_seeds_exact_name_matches(tmp_path, requests_mock, capsys):
-    _make_install(tmp_path, "heizstab", 56, "Heizstab")
+    _make_install(tmp_path, "heatingelement", 56, "HeatingElement")
     _make_install(tmp_path, "garage", 49, "Garage")
     requests_mock.get(
         "http://192.168.1.50:7070/api/state",
-        json={"loadpoints": [{"title": "Heizstab"}, {"title": "Garage"}]},
+        json={"loadpoints": [{"title": "HeatingElement"}, {"title": "Garage"}]},
     )
     state_path = tmp_path / "state.json"
     rc = cli.main([
@@ -92,17 +92,17 @@ def test_auto_mode_seeds_exact_name_matches(tmp_path, requests_mock, capsys):
     assert "Seeded 2" in out
     assert state_path.exists()
     data = json.loads(state_path.read_text())
-    assert data == {"Heizstab": 56, "Garage": 49}
+    assert data == {"HeatingElement": 56, "Garage": 49}
 
 
 def test_auto_mode_skips_needs_operator(tmp_path, requests_mock, capsys):
     """If CustomName has no exact-name match and no LoadpointIndex,
     --auto must skip it (operator review required)."""
-    _make_install(tmp_path, "heizstab", 56, "Heizstab")
+    _make_install(tmp_path, "heatingelement", 56, "HeatingElement")
     _make_install(tmp_path, "weirdname", 49, "TotallyDifferent")
     requests_mock.get(
         "http://192.168.1.50:7070/api/state",
-        json={"loadpoints": [{"title": "Heizstab"}, {"title": "Garage"}]},
+        json={"loadpoints": [{"title": "HeatingElement"}, {"title": "Garage"}]},
     )
     state_path = tmp_path / "state.json"
     rc = cli.main([
@@ -112,16 +112,16 @@ def test_auto_mode_skips_needs_operator(tmp_path, requests_mock, capsys):
     ])
     assert rc == 0
     data = json.loads(state_path.read_text())
-    assert data == {"Heizstab": 56}  # weirdname skipped
+    assert data == {"HeatingElement": 56}  # weirdname skipped
 
 
 # ----- Dry-run ------------------------------------------------------------
 
 def test_dry_run_does_not_write_state(tmp_path, requests_mock, capsys):
-    _make_install(tmp_path, "heizstab", 56, "Heizstab")
+    _make_install(tmp_path, "heatingelement", 56, "HeatingElement")
     requests_mock.get(
         "http://192.168.1.50:7070/api/state",
-        json={"loadpoints": [{"title": "Heizstab"}]},
+        json={"loadpoints": [{"title": "HeatingElement"}]},
     )
     state_path = tmp_path / "state.json"
     rc = cli.main([
@@ -145,7 +145,7 @@ def test_evcc_unreachable_still_runs_in_auto_with_no_matches(
     confidence='exact-name' so nothing is accepted. Exit code is 0
     (nothing went wrong, just nothing to do)."""
     import requests
-    _make_install(tmp_path, "heizstab", 56, "Heizstab")
+    _make_install(tmp_path, "heatingelement", 56, "HeatingElement")
     requests_mock.get(
         "http://192.168.1.50:7070/api/state",
         exc=requests.exceptions.ConnectTimeout,
@@ -165,7 +165,7 @@ def test_evcc_unreachable_still_runs_in_auto_with_no_matches(
 def test_no_fetch_titles_skips_http_entirely(tmp_path, capsys):
     """--no-fetch-titles must not call EVCC at all (no requests_mock = if
     a call goes out, NoMockAddress exception surfaces)."""
-    _make_install(tmp_path, "heizstab", 56, "Heizstab")
+    _make_install(tmp_path, "heatingelement", 56, "HeatingElement")
     state_path = tmp_path / "state.json"
     rc = cli.main([
         "--data-dir", str(tmp_path),
@@ -173,7 +173,7 @@ def test_no_fetch_titles_skips_http_entirely(tmp_path, capsys):
         "--auto",
         "--no-fetch-titles",
     ])
-    # No EVCC call -> evcc_titles=[] -> auto-mode skips Heizstab
+    # No EVCC call -> evcc_titles=[] -> auto-mode skips HeatingElement
     assert rc == 0
     assert not state_path.exists()
 
@@ -181,10 +181,10 @@ def test_no_fetch_titles_skips_http_entirely(tmp_path, capsys):
 # ----- Interactive mode (monkeypatched input) -----------------------------
 
 def test_interactive_accepts_with_default_yes(tmp_path, requests_mock, monkeypatch, capsys):
-    _make_install(tmp_path, "heizstab", 56, "Heizstab")
+    _make_install(tmp_path, "heatingelement", 56, "HeatingElement")
     requests_mock.get(
         "http://192.168.1.50:7070/api/state",
-        json={"loadpoints": [{"title": "Heizstab"}]},
+        json={"loadpoints": [{"title": "HeatingElement"}]},
     )
     monkeypatch.setattr("builtins.input", lambda _prompt: "")  # empty -> default Yes
     state_path = tmp_path / "state.json"
@@ -193,14 +193,14 @@ def test_interactive_accepts_with_default_yes(tmp_path, requests_mock, monkeypat
         "--state-path", str(state_path),
     ])
     assert rc == 0
-    assert json.loads(state_path.read_text()) == {"Heizstab": 56}
+    assert json.loads(state_path.read_text()) == {"HeatingElement": 56}
 
 
 def test_interactive_skips_on_no(tmp_path, requests_mock, monkeypatch, capsys):
-    _make_install(tmp_path, "heizstab", 56, "Heizstab")
+    _make_install(tmp_path, "heatingelement", 56, "HeatingElement")
     requests_mock.get(
         "http://192.168.1.50:7070/api/state",
-        json={"loadpoints": [{"title": "Heizstab"}]},
+        json={"loadpoints": [{"title": "HeatingElement"}]},
     )
     monkeypatch.setattr("builtins.input", lambda _prompt: "n")
     state_path = tmp_path / "state.json"
@@ -218,14 +218,14 @@ def test_interactive_accepts_override_title(tmp_path, requests_mock, monkeypatch
     """When user types a free-form title at the prompt, that wins over the
     auto-suggestion - handy when CustomName doesn't match the EVCC title.
     A final confirm step (SF6) catches typos by echoing the full table."""
-    _make_install(tmp_path, "heizstab", 56, "WrongName")
+    _make_install(tmp_path, "heatingelement", 56, "WrongName")
     requests_mock.get(
         "http://192.168.1.50:7070/api/state",
-        json={"loadpoints": [{"title": "Heizstab"}, {"title": "Garage"}]},
+        json={"loadpoints": [{"title": "HeatingElement"}, {"title": "Garage"}]},
     )
 
     # Two prompts: title override, then final confirm
-    answers = iter(["Heizstab", "y"])
+    answers = iter(["HeatingElement", "y"])
 
     def fake_input(_prompt):
         return next(answers)
@@ -237,7 +237,7 @@ def test_interactive_accepts_override_title(tmp_path, requests_mock, monkeypatch
         "--state-path", str(state_path),
     ])
     assert rc == 0
-    assert json.loads(state_path.read_text()) == {"Heizstab": 56}
+    assert json.loads(state_path.read_text()) == {"HeatingElement": 56}
 
 
 # ----- Idempotency --------------------------------------------------------
@@ -245,10 +245,10 @@ def test_interactive_accepts_override_title(tmp_path, requests_mock, monkeypatch
 def test_rerun_is_idempotent(tmp_path, requests_mock):
     """Running the migrator twice in a row must not raise InvalidStateFile.
     state_store.seed() preserves existing entries."""
-    _make_install(tmp_path, "heizstab", 56, "Heizstab")
+    _make_install(tmp_path, "heatingelement", 56, "HeatingElement")
     requests_mock.get(
         "http://192.168.1.50:7070/api/state",
-        json={"loadpoints": [{"title": "Heizstab"}]},
+        json={"loadpoints": [{"title": "HeatingElement"}]},
     )
     state_path = tmp_path / "state.json"
     rc1 = cli.main([
@@ -262,7 +262,7 @@ def test_rerun_is_idempotent(tmp_path, requests_mock):
         "--auto",
     ])
     assert rc1 == 0 and rc2 == 0
-    assert json.loads(state_path.read_text()) == {"Heizstab": 56}
+    assert json.loads(state_path.read_text()) == {"HeatingElement": 56}
 
 
 # ----- Title collision in state.json --------------------------------------
@@ -271,30 +271,30 @@ def test_seeding_collision_returns_error(tmp_path, requests_mock, capsys):
     """If state.json already maps a title to a DIFFERENT DI than what we
     propose, seed() must reject + we surface the error cleanly."""
     state_path = tmp_path / "state.json"
-    # Pre-populate state.json with Heizstab -> 40 (different DI)
-    state_path.write_text(json.dumps({"Heizstab": 40}))
-    _make_install(tmp_path, "heizstab", 56, "Heizstab")
+    # Pre-populate state.json with HeatingElement -> 40 (different DI)
+    state_path.write_text(json.dumps({"HeatingElement": 40}))
+    _make_install(tmp_path, "heatingelement", 56, "HeatingElement")
     requests_mock.get(
         "http://192.168.1.50:7070/api/state",
-        json={"loadpoints": [{"title": "Heizstab"}]},
+        json={"loadpoints": [{"title": "HeatingElement"}]},
     )
     rc = cli.main([
         "--data-dir", str(tmp_path),
         "--state-path", str(state_path),
         "--auto",
     ])
-    # seed() preserves existing: Heizstab stays at 40, 56 is silently ignored
+    # seed() preserves existing: HeatingElement stays at 40, 56 is silently ignored
     # because setdefault won't overwrite. So state.json is unchanged.
     assert rc == 0
     data = json.loads(state_path.read_text())
-    assert data["Heizstab"] == 40
+    assert data["HeatingElement"] == 40
 
 
 def test_seeding_di_outside_range_errors(tmp_path, requests_mock, capsys):
-    _make_install(tmp_path, "weird", 999, "Heizstab")
+    _make_install(tmp_path, "weird", 999, "HeatingElement")
     requests_mock.get(
         "http://192.168.1.50:7070/api/state",
-        json={"loadpoints": [{"title": "Heizstab"}]},
+        json={"loadpoints": [{"title": "HeatingElement"}]},
     )
     state_path = tmp_path / "state.json"
     rc = cli.main([
@@ -311,11 +311,11 @@ def test_seeding_di_outside_range_errors(tmp_path, requests_mock, capsys):
 # ----- Uninstall-old hook -------------------------------------------------
 
 def test_uninstall_old_invokes_each_script(tmp_path, requests_mock, monkeypatch):
-    _make_install(tmp_path, "heizstab", 56, "Heizstab")
+    _make_install(tmp_path, "heatingelement", 56, "HeatingElement")
     _make_install(tmp_path, "garage", 49, "Garage")
     requests_mock.get(
         "http://192.168.1.50:7070/api/state",
-        json={"loadpoints": [{"title": "Heizstab"}, {"title": "Garage"}]},
+        json={"loadpoints": [{"title": "HeatingElement"}, {"title": "Garage"}]},
     )
     state_path = tmp_path / "state.json"
     invoked = []
@@ -338,10 +338,10 @@ def test_uninstall_old_invokes_each_script(tmp_path, requests_mock, monkeypatch)
 
 def test_uninstall_old_reports_script_failures(tmp_path, requests_mock,
                                                 monkeypatch, capsys):
-    _make_install(tmp_path, "heizstab", 56, "Heizstab")
+    _make_install(tmp_path, "heatingelement", 56, "HeatingElement")
     requests_mock.get(
         "http://192.168.1.50:7070/api/state",
-        json={"loadpoints": [{"title": "Heizstab"}]},
+        json={"loadpoints": [{"title": "HeatingElement"}]},
     )
     state_path = tmp_path / "state.json"
 
@@ -365,10 +365,10 @@ def test_running_service_refused_without_force(tmp_path, requests_mock,
     """SF4: writing state.json while the multi-bridge is up would race the
     running process's atomic write. Refuse unless the operator opts in via
     --ignore-running."""
-    _make_install(tmp_path, "heizstab", 56, "Heizstab")
+    _make_install(tmp_path, "heatingelement", 56, "HeatingElement")
     requests_mock.get(
         "http://192.168.1.50:7070/api/state",
-        json={"loadpoints": [{"title": "Heizstab"}]},
+        json={"loadpoints": [{"title": "HeatingElement"}]},
     )
     state_path = tmp_path / "state.json"
     # Simulate running service: presence of the symlink WITHOUT a 'down' file
@@ -391,10 +391,10 @@ def test_running_service_refused_without_force(tmp_path, requests_mock,
 def test_running_service_accepted_with_ignore_flag(tmp_path, requests_mock,
                                                     monkeypatch):
     """SF4 escape hatch."""
-    _make_install(tmp_path, "heizstab", 56, "Heizstab")
+    _make_install(tmp_path, "heatingelement", 56, "HeatingElement")
     requests_mock.get(
         "http://192.168.1.50:7070/api/state",
-        json={"loadpoints": [{"title": "Heizstab"}]},
+        json={"loadpoints": [{"title": "HeatingElement"}]},
     )
     state_path = tmp_path / "state.json"
     monkeypatch.setattr(cli, "is_multi_service_running", lambda: True)
@@ -412,10 +412,10 @@ def test_unwritable_state_dir_fails_preflight(tmp_path, requests_mock,
                                                monkeypatch, capsys):
     """SF5: catch missing write permission BEFORE prompting the operator
     for 5 mappings only to fail at the end."""
-    _make_install(tmp_path, "heizstab", 56, "Heizstab")
+    _make_install(tmp_path, "heatingelement", 56, "HeatingElement")
     requests_mock.get(
         "http://192.168.1.50:7070/api/state",
-        json={"loadpoints": [{"title": "Heizstab"}]},
+        json={"loadpoints": [{"title": "HeatingElement"}]},
     )
     locked = tmp_path / "locked"
     locked.mkdir()
@@ -440,14 +440,14 @@ def test_final_confirm_table_shown_with_free_form_overrides(
 ):
     """SF6: when the operator typed a free-form title, the apply-step must
     echo the full final mapping table before writing - so they catch typos."""
-    _make_install(tmp_path, "heizstab", 56, "OldName")
+    _make_install(tmp_path, "heatingelement", 56, "OldName")
     requests_mock.get(
         "http://192.168.1.50:7070/api/state",
-        json={"loadpoints": [{"title": "Heizstab"}, {"title": "Garage"}]},
+        json={"loadpoints": [{"title": "HeatingElement"}, {"title": "Garage"}]},
     )
-    # First prompt: needs-operator -> operator types "Heizstab"
+    # First prompt: needs-operator -> operator types "HeatingElement"
     # Second prompt: final confirmation -> "y"
-    answers = iter(["Heizstab", "y"])
+    answers = iter(["HeatingElement", "y"])
     monkeypatch.setattr("builtins.input", lambda _p: next(answers))
     monkeypatch.setattr(cli, "is_multi_service_running", lambda: False)
     state_path = tmp_path / "state.json"
@@ -458,20 +458,20 @@ def test_final_confirm_table_shown_with_free_form_overrides(
     assert rc == 0
     out = capsys.readouterr().out
     assert "Will seed" in out  # final table
-    assert "Heizstab" in out
-    assert json.loads(state_path.read_text()) == {"Heizstab": 56}
+    assert "HeatingElement" in out
+    assert json.loads(state_path.read_text()) == {"HeatingElement": 56}
 
 
 def test_final_confirm_aborts_on_no(
     tmp_path, requests_mock, monkeypatch, capsys
 ):
     """If the operator says n at the final confirm, nothing is written."""
-    _make_install(tmp_path, "heizstab", 56, "OldName")
+    _make_install(tmp_path, "heatingelement", 56, "OldName")
     requests_mock.get(
         "http://192.168.1.50:7070/api/state",
-        json={"loadpoints": [{"title": "Heizstab"}]},
+        json={"loadpoints": [{"title": "HeatingElement"}]},
     )
-    answers = iter(["Heizstab", "n"])
+    answers = iter(["HeatingElement", "n"])
     monkeypatch.setattr("builtins.input", lambda _p: next(answers))
     monkeypatch.setattr(cli, "is_multi_service_running", lambda: False)
     state_path = tmp_path / "state.json"
@@ -488,10 +488,10 @@ def test_uninstall_timeout_kills_hanging_script(
 ):
     """NICE-TO-HAVE: --uninstall-timeout caps how long a slow/hanging
     uninstall.sh may block the migrator."""
-    _make_install(tmp_path, "heizstab", 56, "Heizstab")
+    _make_install(tmp_path, "heatingelement", 56, "HeatingElement")
     requests_mock.get(
         "http://192.168.1.50:7070/api/state",
-        json={"loadpoints": [{"title": "Heizstab"}]},
+        json={"loadpoints": [{"title": "HeatingElement"}]},
     )
     monkeypatch.setattr(cli, "is_multi_service_running", lambda: False)
     state_path = tmp_path / "state.json"
@@ -515,10 +515,10 @@ def test_uninstall_timeout_kills_hanging_script(
 
 
 def test_uninstall_dry_run_does_not_invoke(tmp_path, requests_mock, monkeypatch):
-    _make_install(tmp_path, "heizstab", 56, "Heizstab")
+    _make_install(tmp_path, "heatingelement", 56, "HeatingElement")
     requests_mock.get(
         "http://192.168.1.50:7070/api/state",
-        json={"loadpoints": [{"title": "Heizstab"}]},
+        json={"loadpoints": [{"title": "HeatingElement"}]},
     )
     state_path = tmp_path / "state.json"
     invoked = []

@@ -48,7 +48,7 @@ def test_first_tick_creates_services_for_all_loadpoints(
     store = StateStore(tmp_path / "state.json", di_range=(40, 59))
     sync_ = LoadpointSync(client, store, bus_factory=lambda: MagicMock(name="bus"))
     sync_.tick()
-    assert set(mock_dbus_service_class) == {"Wallbox", "Heizstab", "Heatpump"}
+    assert set(mock_dbus_service_class) == {"Wallbox", "HeatingElement", "Heatpump"}
     for svc in mock_dbus_service_class.values():
         svc.update.assert_called_once()
 
@@ -127,7 +127,7 @@ def test_disappeared_loadpoint_marked_disconnected_not_destroyed(
     sync_.tick()
     mock_dbus_service_class["Wallbox"].mark_disconnected.assert_called_once()
     mock_dbus_service_class["Heatpump"].mark_disconnected.assert_called_once()
-    assert mock_dbus_service_class["Heizstab"].mark_disconnected.call_count == 0
+    assert mock_dbus_service_class["HeatingElement"].mark_disconnected.call_count == 0
 
 
 def test_rename_creates_new_service_and_disconnects_old(
@@ -139,14 +139,14 @@ def test_rename_creates_new_service_and_disconnects_old(
         EvccClient("evcc:7070"), StateStore(p), bus_factory=lambda: MagicMock(name="bus")
     )
     sync_.tick()
-    assert "Heizstab" in mock_dbus_service_class
-    di_old = mock_dbus_service_class["Heizstab"].device_instance
+    assert "HeatingElement" in mock_dbus_service_class
+    di_old = mock_dbus_service_class["HeatingElement"].device_instance
 
     _arm(requests_mock, "evcc_state_renamed.json")
     sync_.tick()
     assert "Heater" in mock_dbus_service_class
     assert mock_dbus_service_class["Heater"].device_instance != di_old
-    mock_dbus_service_class["Heizstab"].mark_disconnected.assert_called_once()
+    mock_dbus_service_class["HeatingElement"].mark_disconnected.assert_called_once()
 
 
 def test_evcc_unreachable_logs_but_does_not_crash(
@@ -178,7 +178,7 @@ def test_service_name_pattern_uses_id_prefix(
         bus_factory=lambda: MagicMock(name="bus"),
     )
     sync_.tick()
-    svc = mock_dbus_service_class["Heizstab"]
+    svc = mock_dbus_service_class["HeatingElement"]
     assert svc.service_name.startswith("com.victronenergy.evcharger.http_id")
     assert svc.service_name == "com.victronenergy.evcharger.http_id40"
 
@@ -188,9 +188,9 @@ def test_duplicate_titles_in_same_poll_are_skipped(
 ):
     duplicate_fixture = {
         "loadpoints": [
-            {"title": "Heizstab", "mode": "pv", "connected": True, "charging": True,
+            {"title": "HeatingElement", "mode": "pv", "connected": True, "charging": True,
              "chargeCurrents": [6.5, 0, 0]},
-            {"title": "Heizstab", "mode": "pv", "connected": True, "charging": False,
+            {"title": "HeatingElement", "mode": "pv", "connected": True, "charging": False,
              "chargeCurrents": [0, 0, 0]},
         ]
     }
@@ -202,7 +202,7 @@ def test_duplicate_titles_in_same_poll_are_skipped(
         bus_factory=lambda: MagicMock(name="bus"),
     )
     sync_.tick()
-    assert "Heizstab" not in mock_dbus_service_class
+    assert "HeatingElement" not in mock_dbus_service_class
     error_messages = [r.message for r in caplog.records if r.levelno == logging.ERROR]
     assert any("duplicate" in m.lower() for m in error_messages)
 
@@ -293,8 +293,8 @@ def test_dbus_service_construction_failure_skipped(
 
     def factory(service_name, device_instance, title, bus=None,
                 mgmt_connection=None):
-        if title == "Heizstab":
-            raise RuntimeError("simulated bus failure for Heizstab")
+        if title == "HeatingElement":
+            raise RuntimeError("simulated bus failure for HeatingElement")
         m = MagicMock()
         m.service_name = service_name
         m.device_instance = device_instance
@@ -314,7 +314,7 @@ def test_dbus_service_construction_failure_skipped(
     assert set(instances) == {"Wallbox", "Heatpump"}
     # Error message captured
     assert any(
-        "Failed to register" in r.message and "Heizstab" in r.message
+        "Failed to register" in r.message and "HeatingElement" in r.message
         for r in caplog.records if r.levelno == logging.ERROR
     )
 
@@ -334,7 +334,7 @@ def test_update_exception_in_one_lp_does_not_kill_tick(
         m.service_name = service_name
         m.device_instance = device_instance
         m.title = title
-        if title == "Heizstab":
+        if title == "HeatingElement":
             m.update.side_effect = RuntimeError("simulated update failure")
         instances[title] = m
         return m
@@ -350,7 +350,7 @@ def test_update_exception_in_one_lp_does_not_kill_tick(
     instances["Wallbox"].update.assert_called_once()
     instances["Heatpump"].update.assert_called_once()
     assert any(
-        "Update failed" in r.message and "Heizstab" in r.message
+        "Update failed" in r.message and "HeatingElement" in r.message
         for r in caplog.records if r.levelno == logging.ERROR
     )
 

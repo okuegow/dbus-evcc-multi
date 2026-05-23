@@ -6,12 +6,12 @@ from seed_state import main, parse_pairs
 
 
 def test_parse_pairs_single():
-    assert parse_pairs(["Heizstab:56"]) == {"Heizstab": 56}
+    assert parse_pairs(["HeatingElement:56"]) == {"HeatingElement": 56}
 
 
 def test_parse_pairs_multiple():
-    assert parse_pairs(["Heizstab:56", "Wallbox:49"]) == {
-        "Heizstab": 56,
+    assert parse_pairs(["HeatingElement:56", "Wallbox:49"]) == {
+        "HeatingElement": 56,
         "Wallbox": 49,
     }
 
@@ -27,12 +27,12 @@ def test_parse_pairs_title_with_colon_uses_rsplit():
 
 def test_parse_pairs_rejects_missing_separator():
     with pytest.raises(ValueError, match="expected"):
-        parse_pairs(["Heizstab"])
+        parse_pairs(["HeatingElement"])
 
 
 def test_parse_pairs_rejects_non_integer_di():
     with pytest.raises(ValueError, match="integer"):
-        parse_pairs(["Heizstab:abc"])
+        parse_pairs(["HeatingElement:abc"])
 
 
 def test_parse_pairs_rejects_empty_title():
@@ -48,12 +48,12 @@ def test_main_writes_state_file(tmp_path, monkeypatch, capsys):
     fake_script.write_text("")
     monkeypatch.setattr(seed_state, "__file__", str(fake_script))
 
-    rc = main(["seed_state.py", "Heizstab:56", "Wallbox:49"])
+    rc = main(["seed_state.py", "HeatingElement:56", "Wallbox:49"])
     assert rc == 0
     state_path = tmp_path / "state.json"
     assert state_path.exists()
     data = json.loads(state_path.read_text())
-    assert data == {"Heizstab": 56, "Wallbox": 49}
+    assert data == {"HeatingElement": 56, "Wallbox": 49}
 
 
 def test_main_prints_help_on_no_args(capsys):

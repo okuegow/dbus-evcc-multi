@@ -36,7 +36,7 @@ BRUCKSCH_INI = """\
 AccessType = OnPremise
 SignOfLifeLog = 1
 Deviceinstance = 56
-CustomName = Heizstab
+CustomName = HeatingElement
 
 [ONPREMISE]
 Host = 192.168.1.50:7070
@@ -72,7 +72,7 @@ def test_parse_brucksch_full(tmp_path):
     p.write_text(BRUCKSCH_INI)
     install = parse_legacy_config(p)
     assert install.deviceinstance == 56
-    assert install.custom_name == "Heizstab"
+    assert install.custom_name == "HeatingElement"
     assert install.host == "192.168.1.50:7070"
     assert install.loadpoint_index is None
     assert install.errors == []
@@ -130,15 +130,15 @@ def test_parse_missing_file_records_error(tmp_path):
 # ----- discover_installations --------------------------------------------
 
 def test_discover_finds_all_legacy_bridges(tmp_path):
-    _make_install(tmp_path, "heizstab", ini_content=BRUCKSCH_INI)
+    _make_install(tmp_path, "heatingelement", ini_content=BRUCKSCH_INI)
     _make_install(tmp_path, "garage", ini_content=DSTEINKOPF_INI)
     found = discover_installations(tmp_path)
     names = sorted(i.path.name for i in found)
-    assert names == ["dbus-evcc-garage", "dbus-evcc-heizstab"]
+    assert names == ["dbus-evcc-garage", "dbus-evcc-heatingelement"]
 
 
 def test_discover_skips_our_own_multi_directory(tmp_path):
-    _make_install(tmp_path, "heizstab", ini_content=BRUCKSCH_INI)
+    _make_install(tmp_path, "heatingelement", ini_content=BRUCKSCH_INI)
     # Our own multi/ must not be reported as legacy
     multi = tmp_path / "dbus-evcc-multi"
     multi.mkdir()
@@ -146,7 +146,7 @@ def test_discover_skips_our_own_multi_directory(tmp_path):
     found = discover_installations(tmp_path)
     names = [i.path.name for i in found]
     assert "dbus-evcc-multi" not in names
-    assert "dbus-evcc-heizstab" in names
+    assert "dbus-evcc-heatingelement" in names
 
 
 def test_discover_returns_empty_when_no_legacy(tmp_path):
@@ -157,13 +157,13 @@ def test_discover_returns_empty_when_no_legacy(tmp_path):
 
 
 def test_discover_ignores_unrelated_dirs(tmp_path):
-    _make_install(tmp_path, "heizstab", ini_content=BRUCKSCH_INI)
+    _make_install(tmp_path, "heatingelement", ini_content=BRUCKSCH_INI)
     (tmp_path / "evcc").mkdir()
     (tmp_path / "evcc" / "evcc.yaml").write_text("noop")
     (tmp_path / "other-stuff").mkdir()
     found = discover_installations(tmp_path)
     assert len(found) == 1
-    assert found[0].path.name == "dbus-evcc-heizstab"
+    assert found[0].path.name == "dbus-evcc-heatingelement"
 
 
 def test_discover_returns_install_with_missing_config_ini(tmp_path):
@@ -199,29 +199,29 @@ def test_discover_detects_uninstall_script_presence(tmp_path):
 def test_discover_returns_sorted_by_path(tmp_path):
     """Stable order makes the operator's diff against state.json predictable."""
     _make_install(tmp_path, "zwallbox", ini_content=BRUCKSCH_INI)
-    _make_install(tmp_path, "aheizstab", ini_content=BRUCKSCH_INI)
+    _make_install(tmp_path, "aheatingelement", ini_content=BRUCKSCH_INI)
     _make_install(tmp_path, "mgarage", ini_content=BRUCKSCH_INI)
     found = discover_installations(tmp_path)
     names = [i.path.name for i in found]
     assert names == [
-        "dbus-evcc-aheizstab",
+        "dbus-evcc-aheatingelement",
         "dbus-evcc-mgarage",
         "dbus-evcc-zwallbox",
     ]
 
 
 def test_discover_dedupes_symlinked_aliases(tmp_path):
-    """SF1: /data/dbus-evcc-current -> /data/dbus-evcc-heizstab must NOT
+    """SF1: /data/dbus-evcc-current -> /data/dbus-evcc-heatingelement must NOT
     produce two installations pointing at the same uninstall.sh."""
-    _make_install(tmp_path, "heizstab", ini_content=BRUCKSCH_INI)
-    (tmp_path / "dbus-evcc-current").symlink_to(tmp_path / "dbus-evcc-heizstab")
+    _make_install(tmp_path, "heatingelement", ini_content=BRUCKSCH_INI)
+    (tmp_path / "dbus-evcc-current").symlink_to(tmp_path / "dbus-evcc-heatingelement")
     found = discover_installations(tmp_path)
-    # The real directory wins (sorted by name, 'current' < 'heizstab' alphabetically,
+    # The real directory wins (sorted by name, 'current' < 'heatingelement' alphabetically,
     # so the symlink is encountered first - but after resolve() both point at
     # the same target, the duplicate is dropped).
     assert len(found) == 1
     # The kept entry must be the real directory, not the symlink alias
-    assert found[0].path.resolve() == (tmp_path / "dbus-evcc-heizstab").resolve()
+    assert found[0].path.resolve() == (tmp_path / "dbus-evcc-heatingelement").resolve()
 
 
 # ----- LegacyInstall.is_usable -------------------------------------------
@@ -256,23 +256,23 @@ def test_propose_matches_via_loadpoint_index_first():
     """If LoadpointIndex is set, that's authoritative - it points to a
     specific slot in EVCC's loadpoints[] array."""
     installs = [_install("garage", 49, custom_name="Garage", loadpoint_index=1)]
-    titles = ["Heizstab", "Wallbox", "Wärmepumpe"]
+    titles = ["HeatingElement", "Wallbox", "Heatpump"]
     proposals = propose_mappings(installs, titles)
     assert proposals[0].evcc_title == "Wallbox"
     assert proposals[0].confidence == "index"
 
 
 def test_propose_matches_via_customname_case_insensitive():
-    installs = [_install("h", 56, custom_name="heizstab")]
-    titles = ["Heizstab", "Garage"]
+    installs = [_install("h", 56, custom_name="heatingelement")]
+    titles = ["HeatingElement", "Garage"]
     proposals = propose_mappings(installs, titles)
-    assert proposals[0].evcc_title == "Heizstab"
+    assert proposals[0].evcc_title == "HeatingElement"
     assert proposals[0].confidence == "exact-name"
 
 
 def test_propose_marks_ambiguous_when_no_match():
     installs = [_install("legacy", 56, custom_name="OldName")]
-    titles = ["Heizstab", "Garage"]
+    titles = ["HeatingElement", "Garage"]
     proposals = propose_mappings(installs, titles)
     assert proposals[0].evcc_title is None
     assert proposals[0].confidence == "needs-operator"
@@ -289,8 +289,8 @@ def test_propose_index_out_of_range_does_NOT_fall_back():
     """SF2: a stale LoadpointIndex is a strong signal that the install is
     out of sync with EVCC. Don't silently fall back to name matching - the
     name could collide with a different loadpoint. Require operator review."""
-    installs = [_install("x", 49, custom_name="Heizstab", loadpoint_index=99)]
-    titles = ["Heizstab", "Garage"]
+    installs = [_install("x", 49, custom_name="HeatingElement", loadpoint_index=99)]
+    titles = ["HeatingElement", "Garage"]
     proposals = propose_mappings(installs, titles)
     assert proposals[0].evcc_title is None
     assert proposals[0].confidence == "needs-operator"
@@ -300,8 +300,8 @@ def test_propose_duplicate_evcc_titles_force_needs_operator():
     """BLOCKER: if EVCC returns two loadpoints with the same title, our
     identity model collapses them. Don't auto-match - even an exact-name
     match would seed only one of the two. Force operator review."""
-    installs = [_install("h", 56, custom_name="Heizstab")]
-    titles = ["Heizstab", "Heizstab", "Garage"]
+    installs = [_install("h", 56, custom_name="HeatingElement")]
+    titles = ["HeatingElement", "HeatingElement", "Garage"]
     proposals = propose_mappings(installs, titles)
     assert proposals[0].evcc_title is None
     assert proposals[0].confidence == "needs-operator"
@@ -310,7 +310,7 @@ def test_propose_duplicate_evcc_titles_force_needs_operator():
 def test_propose_index_pointing_into_duplicate_block_force_needs_operator():
     """Same BLOCKER but via index: if titles[idx] is a duplicate, no auto."""
     installs = [_install("g", 49, custom_name="anything", loadpoint_index=0)]
-    titles = ["Heizstab", "Heizstab"]
+    titles = ["HeatingElement", "HeatingElement"]
     proposals = propose_mappings(installs, titles)
     assert proposals[0].evcc_title is None
     assert proposals[0].confidence == "needs-operator"
@@ -318,15 +318,15 @@ def test_propose_index_pointing_into_duplicate_block_force_needs_operator():
 
 def test_propose_no_customname_no_index_returns_needs_operator():
     installs = [_install("blank", 49)]
-    titles = ["Heizstab", "Garage"]
+    titles = ["HeatingElement", "Garage"]
     proposals = propose_mappings(installs, titles)
     assert proposals[0].evcc_title is None
     assert proposals[0].confidence == "needs-operator"
 
 
 def test_propose_keeps_di_and_install_path_in_proposal():
-    install = _install("heizstab", 56, custom_name="Heizstab")
-    proposals = propose_mappings([install], ["Heizstab"])
+    install = _install("heatingelement", 56, custom_name="HeatingElement")
+    proposals = propose_mappings([install], ["HeatingElement"])
     p = proposals[0]
     assert p.deviceinstance == 56
     assert p.install is install
@@ -334,21 +334,21 @@ def test_propose_keeps_di_and_install_path_in_proposal():
 
 def test_propose_multiple_installs_one_call():
     installs = [
-        _install("hz", 56, custom_name="Heizstab"),
+        _install("hz", 56, custom_name="HeatingElement"),
         _install("ga", 49, custom_name="Garage", loadpoint_index=1),
     ]
-    titles = ["Heizstab", "Garage"]
+    titles = ["HeatingElement", "Garage"]
     proposals = propose_mappings(installs, titles)
     assert len(proposals) == 2
     by_di = {p.deviceinstance: p for p in proposals}
-    assert by_di[56].evcc_title == "Heizstab"
+    assert by_di[56].evcc_title == "HeatingElement"
     assert by_di[49].evcc_title == "Garage"
 
 
 def test_propose_empty_evcc_titles_makes_all_needs_operator():
     """If EVCC is unreachable, the CLI may pass an empty titles list;
     then every proposal needs operator input."""
-    installs = [_install("h", 56, custom_name="Heizstab")]
+    installs = [_install("h", 56, custom_name="HeatingElement")]
     proposals = propose_mappings(installs, [])
     assert proposals[0].confidence == "needs-operator"
     assert proposals[0].evcc_title is None

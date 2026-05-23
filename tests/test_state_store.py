@@ -12,29 +12,29 @@ from state_store import (
 
 def test_first_title_gets_first_di_in_range(tmp_path):
     s = StateStore(tmp_path / "state.json", di_range=(40, 59))
-    assert s.get_or_allocate("Heizstab") == 40
+    assert s.get_or_allocate("HeatingElement") == 40
 
 
 def test_second_title_gets_next_di(tmp_path):
     s = StateStore(tmp_path / "state.json", di_range=(40, 59))
-    assert s.get_or_allocate("Heizstab") == 40
+    assert s.get_or_allocate("HeatingElement") == 40
     assert s.get_or_allocate("Wallbox") == 41
 
 
 def test_existing_title_returns_same_di(tmp_path):
     s = StateStore(tmp_path / "state.json", di_range=(40, 59))
-    s.get_or_allocate("Heizstab")
+    s.get_or_allocate("HeatingElement")
     s.get_or_allocate("Wallbox")
-    assert s.get_or_allocate("Heizstab") == 40
+    assert s.get_or_allocate("HeatingElement") == 40
 
 
 def test_persists_across_instances(tmp_path):
     p = tmp_path / "state.json"
     s1 = StateStore(p, di_range=(40, 59))
-    s1.get_or_allocate("Heizstab")
+    s1.get_or_allocate("HeatingElement")
     s1.get_or_allocate("Wallbox")
     s2 = StateStore(p, di_range=(40, 59))
-    assert s2.get_or_allocate("Heizstab") == 40
+    assert s2.get_or_allocate("HeatingElement") == 40
     assert s2.get_or_allocate("Wallbox") == 41
     assert s2.get_or_allocate("Heatpump") == 42
 
@@ -42,14 +42,14 @@ def test_persists_across_instances(tmp_path):
 def test_seed_pre_assigns(tmp_path):
     p = tmp_path / "state.json"
     s = StateStore(p, di_range=(40, 59))
-    s.seed({"Heizstab": 56})
-    assert s.get_or_allocate("Heizstab") == 56
+    s.seed({"HeatingElement": 56})
+    assert s.get_or_allocate("HeatingElement") == 56
     assert s.get_or_allocate("Wallbox") == 40
 
 
 def test_seed_skips_already_seeded_dis_in_auto_alloc(tmp_path):
     s = StateStore(tmp_path / "state.json", di_range=(40, 42))
-    s.seed({"Heizstab": 41})
+    s.seed({"HeatingElement": 41})
     assert s.get_or_allocate("Wallbox") == 40
     assert s.get_or_allocate("Heatpump") == 42
     with pytest.raises(DeviceInstanceExhausted):
@@ -67,7 +67,7 @@ def test_exhausted_range_raises(tmp_path):
 def test_atomic_write_does_not_truncate_on_crash(tmp_path, monkeypatch):
     p = tmp_path / "state.json"
     s = StateStore(p, di_range=(40, 59))
-    s.get_or_allocate("Heizstab")
+    s.get_or_allocate("HeatingElement")
 
     import state_store as ss_module
 
@@ -80,18 +80,18 @@ def test_atomic_write_does_not_truncate_on_crash(tmp_path, monkeypatch):
     monkeypatch.undo()
 
     s2 = StateStore(p, di_range=(40, 59))
-    assert s2.get_or_allocate("Heizstab") == 40
+    assert s2.get_or_allocate("HeatingElement") == 40
 
 
 def test_reordered_titles_keep_their_dis(tmp_path):
     s = StateStore(tmp_path / "state.json", di_range=(40, 59))
     di_wb = s.get_or_allocate("Wallbox")
-    di_hz = s.get_or_allocate("Heizstab")
+    di_hz = s.get_or_allocate("HeatingElement")
     di_hp = s.get_or_allocate("Heatpump")
-    # EVCC config reordered: Heatpump, Wallbox, Heizstab
+    # EVCC config reordered: Heatpump, Wallbox, HeatingElement
     assert s.get_or_allocate("Heatpump") == di_hp
     assert s.get_or_allocate("Wallbox") == di_wb
-    assert s.get_or_allocate("Heizstab") == di_hz
+    assert s.get_or_allocate("HeatingElement") == di_hz
 
 
 def test_load_rejects_duplicate_dis(tmp_path):
@@ -123,15 +123,15 @@ def test_corrupt_json_file_starts_empty(tmp_path):
 
 def test_seed_does_not_overwrite_existing(tmp_path):
     s = StateStore(tmp_path / "state.json", di_range=(40, 59))
-    s.get_or_allocate("Heizstab")  # gets 40
-    s.seed({"Heizstab": 56})       # ignored, already mapped
-    assert s.get_or_allocate("Heizstab") == 40
+    s.get_or_allocate("HeatingElement")  # gets 40
+    s.seed({"HeatingElement": 56})       # ignored, already mapped
+    assert s.get_or_allocate("HeatingElement") == 40
 
 
 def test_atomic_write_cleans_up_tmp_on_success(tmp_path):
     p = tmp_path / "state.json"
     s = StateStore(p, di_range=(40, 59))
-    s.get_or_allocate("Heizstab")
+    s.get_or_allocate("HeatingElement")
     # No leftover .tmp after a successful write
     assert not (tmp_path / "state.json.tmp").exists()
 

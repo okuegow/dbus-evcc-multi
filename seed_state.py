@@ -6,7 +6,7 @@ is already in use (and bound to VRM history). Run ONCE before first
 start of dbus-evcc-multi.
 
 Usage:
-    python3 seed_state.py "Heizstab:56" "Wallbox:49"
+    python3 seed_state.py "HeatingElement:56" "Wallbox:49"
 
 Idempotent: existing entries are preserved.
 """
