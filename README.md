@@ -154,18 +154,13 @@ The pure logic is unit-tested on a normal machine; the Venus OS D-Bus / iptables
 parts are exercised on real hardware. CI runs the tests and shellcheck on every
 push.
 
-## Credits & lineage
+## Credits
 
-This project grew out of the Venus-OS dbus-evcc lineage:
-[JuWorkshop/dbus-evsecharger](https://github.com/JuWorkshop/dbus-evsecharger)
-→ [SamuelBrucksch/dbus-evcc](https://github.com/SamuelBrucksch/dbus-evcc)
-→ this multi-loadpoint, auto-discovery rewrite. Thanks also to the Victron
-community for the multi-service and logging patterns.
+Inspired by the Venus OS `dbus-evcc` community work, and by the Victron
+community's multi-service and logging patterns.
 
 ## License
 
 [MIT](LICENSE) © 2026 Oliver Kügow.
 
-Not affiliated with or endorsed by EVCC or Victron Energy. The upstream
-repositories above carry no explicit license; this repository licenses the
-original work in it under MIT and credits the lineage.
+Not affiliated with or endorsed by EVCC or Victron Energy.
