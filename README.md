@@ -1,5 +1,9 @@
 # dbus-evcc-multi
 
+[![CI](https://github.com/okuegow/dbus-evcc-multi/actions/workflows/ci.yml/badge.svg)](https://github.com/okuegow/dbus-evcc-multi/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/okuegow/dbus-evcc-multi)](https://github.com/okuegow/dbus-evcc-multi/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 **Bring your [EVCC](https://evcc.io) chargers into the Victron world.**
 
 Run one small service on your Victron [Venus OS](https://github.com/victronenergy/venus)
