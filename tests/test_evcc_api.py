@@ -30,6 +30,7 @@ def test_fetch_state_returns_loadpoints_1lp(requests_mock):
     assert lp.charge_currents == [6.5, 0, 0]
     assert lp.effective_max_current == 20
     assert lp.mode == "pv"
+    assert lp.charge_total_import == 12.345
 
 
 def test_fetch_state_returns_loadpoints_3lp(requests_mock):
@@ -90,6 +91,7 @@ def test_missing_optional_fields_use_defaults():
     assert lps[0].charge_currents == [0, 0, 0]
     assert lps[0].connected is False
     assert lps[0].charge_power == 0.0
+    assert lps[0].charge_total_import == 0.0
     assert lps[0].effective_max_current == 16
 
 

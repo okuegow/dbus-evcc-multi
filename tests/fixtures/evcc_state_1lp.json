@@ -10,6 +10,7 @@
       "chargeVoltages": [230, 230, 230],
       "effectiveMaxCurrent": 20,
       "chargedEnergy": 250.0,
+      "chargeTotalImport": 12.345,
       "chargeDuration": 600000000000
     }
   ]

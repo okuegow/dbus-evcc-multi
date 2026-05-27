@@ -150,11 +150,15 @@ class LoadpointDbusService:
             s["/Status"] = status
             s["/Connected"] = 1
 
-            # Cumulative counters only refreshed while connected. UNVERIFIED:
-            # chargedEnergy is treated as Wh (-> /1000 = kWh). Must be confirmed
-            # against a real EVCC /api/state sample before deploy.
-            if status != STATUS_DISCONNECTED:
+            # chargeTotalImport is EVCC's cumulative kWh meter value. It keeps
+            # increasing for continuous heating devices where chargedEnergy is
+            # a per-session counter and may stay at 0.
+            total_import = float(lp.charge_total_import or 0.0)
+            if total_import > 0:
+                s["/Ac/Energy/Forward"] = total_import
+            elif status != STATUS_DISCONNECTED:
                 s["/Ac/Energy/Forward"] = float(lp.charged_energy) / 1000.0
+            if status != STATUS_DISCONNECTED:
                 s["/ChargingTime"] = int(lp.charge_duration_ns) // 1_000_000_000
 
             idx = (int(s["/UpdateIndex"]) + 1) % 256

@@ -132,11 +132,26 @@ def test_update_charging_uses_per_phase_voltages(monkeypatch):
     assert sets["/Current"] == 19.5
     assert sets["/MaxCurrent"] == 20
     assert sets["/Mode"] == MODE_AUTO
-    # UNVERIFIED unit: chargedEnergy treated as Wh; must confirm against
-    # a live EVCC /api/state sample before merging the deploy.
+    # Fallback for EVCC payloads without chargeTotalImport.
     assert sets["/Ac/Energy/Forward"] == 1.8
     assert sets["/ChargingTime"] == 3600
     assert sets["/UpdateIndex"] == 6
+
+
+def test_update_prefers_charge_total_import_for_cumulative_energy(monkeypatch):
+    svc, vedbus, _ = _make_svc(monkeypatch)
+    vedbus.__getitem__.return_value = 0
+    lp = Loadpoint(
+        title="Heatpump", connected=True, charging=False, mode="off",
+        charge_power=90.25,
+        charge_currents=[0.93, 0.49, 0.5],
+        charge_voltages=[237.5, 236.9, 236.9],
+        charged_energy=0.0,
+        charge_total_import=19341.908,
+    )
+    svc.update(lp)
+    sets = dict(c.args for c in vedbus.__setitem__.call_args_list)
+    assert sets["/Ac/Energy/Forward"] == 19341.908
 
 
 def test_update_index_wraps_at_255(monkeypatch):
