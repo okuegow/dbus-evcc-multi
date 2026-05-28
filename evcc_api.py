@@ -26,6 +26,7 @@ class Loadpoint:
     charge_voltages: List[float] = field(default_factory=lambda: [230.0, 230.0, 230.0])
     effective_max_current: int = 16
     charged_energy: float = 0.0
+    charge_total_import: float = 0.0
     charge_duration_ns: int = 0
 
 
@@ -61,6 +62,7 @@ def _parse_loadpoints(state: dict) -> List[Loadpoint]:
             charge_voltages=_normalize_triple(raw.get("chargeVoltages"), 230.0),
             effective_max_current=int(raw.get("effectiveMaxCurrent") or 16),
             charged_energy=float(raw.get("chargedEnergy") or 0.0),
+            charge_total_import=float(raw.get("chargeTotalImport") or 0.0),
             charge_duration_ns=int(raw.get("chargeDuration") or 0),
         ))
     return out

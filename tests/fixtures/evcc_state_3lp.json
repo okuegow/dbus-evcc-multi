@@ -10,6 +10,7 @@
       "chargeVoltages": [230, 230, 230],
       "effectiveMaxCurrent": 16,
       "chargedEnergy": 0.0,
+      "chargeTotalImport": 1.234,
       "chargeDuration": 0
     },
     {
@@ -22,6 +23,7 @@
       "chargeVoltages": [230, 230, 230],
       "effectiveMaxCurrent": 20,
       "chargedEnergy": 1800.0,
+      "chargeTotalImport": 98.765,
       "chargeDuration": 3600000000000
     },
     {
@@ -34,6 +36,7 @@
       "chargeVoltages": [230, 230, 230],
       "effectiveMaxCurrent": 16,
       "chargedEnergy": 0.0,
+      "chargeTotalImport": 19341.908,
       "chargeDuration": 0
     }
   ]
