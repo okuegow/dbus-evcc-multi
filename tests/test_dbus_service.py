@@ -111,7 +111,8 @@ def test_update_connected_not_charging(monkeypatch):
 
 def test_update_charging_uses_per_phase_voltages(monkeypatch):
     svc, vedbus, _ = _make_svc(monkeypatch)
-    vedbus.__getitem__.return_value = 5
+    # /UpdateIndex starts at 5 (wraps to 6); other paths are uninitialised.
+    vedbus.__getitem__.side_effect = lambda k: 5 if k == "/UpdateIndex" else 0
     lp = Loadpoint(
         title="HeatingElement", connected=True, charging=True, mode="pv",
         charge_power=4500.0,
@@ -152,6 +153,59 @@ def test_update_prefers_charge_total_import_for_cumulative_energy(monkeypatch):
     svc.update(lp)
     sets = dict(c.args for c in vedbus.__setitem__.call_args_list)
     assert sets["/Ac/Energy/Forward"] == 19341.908
+
+
+def test_update_energy_forward_is_monotonic_across_source_switch(monkeypatch):
+    """EVCC may transiently return chargeTotalImport: null / 0 (e.g. on a
+    loadpoint without a meter). The fallback to chargedEnergy/1000 must not
+    roll /Ac/Energy/Forward backwards for VRM.
+    """
+    svc, vedbus, _ = _make_svc(monkeypatch)
+
+    state = {"/Ac/Energy/Forward": 0.0, "/UpdateIndex": 0}
+    vedbus.__getitem__.side_effect = lambda k: state.get(k, 0)
+    vedbus.__setitem__.side_effect = lambda k, v: state.__setitem__(k, v)
+
+    lp_high = Loadpoint(
+        title="Heatpump", connected=True, charging=True, mode="pv",
+        charged_energy=0.0, charge_total_import=19341.908,
+    )
+    svc.update(lp_high)
+    assert state["/Ac/Energy/Forward"] == 19341.908
+
+    # EVCC transiently drops the meter value; chargedEnergy is 0 on a heating LP
+    lp_drop = Loadpoint(
+        title="Heatpump", connected=True, charging=True, mode="pv",
+        charged_energy=0.0, charge_total_import=0.0,
+    )
+    svc.update(lp_drop)
+    assert state["/Ac/Energy/Forward"] == 19341.908  # held, no regression
+
+    # Meter value comes back and grows
+    lp_resume = Loadpoint(
+        title="Heatpump", connected=True, charging=True, mode="pv",
+        charged_energy=0.0, charge_total_import=19500.0,
+    )
+    svc.update(lp_resume)
+    assert state["/Ac/Energy/Forward"] == 19500.0
+
+
+def test_update_disconnected_with_total_import_still_publishes_cumulative(monkeypatch):
+    """A disconnected loadpoint with a positive chargeTotalImport (e.g. an
+    EV that just unplugged) should still publish the lifetime counter so
+    VRM history doesn't stall on disconnect. /ChargingTime stays unpublished.
+    """
+    svc, vedbus, _ = _make_svc(monkeypatch)
+    vedbus.__getitem__.return_value = 0
+    lp = Loadpoint(
+        title="Carport", connected=False, charging=False, mode="pv",
+        charged_energy=0.0, charge_total_import=15303.908,
+    )
+    svc.update(lp)
+    sets = dict(c.args for c in vedbus.__setitem__.call_args_list)
+    assert sets["/Status"] == STATUS_DISCONNECTED
+    assert sets["/Ac/Energy/Forward"] == 15303.908
+    assert "/ChargingTime" not in sets
 
 
 def test_update_index_wraps_at_255(monkeypatch):

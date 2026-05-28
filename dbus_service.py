@@ -151,13 +151,25 @@ class LoadpointDbusService:
             s["/Connected"] = 1
 
             # chargeTotalImport is EVCC's cumulative kWh meter value. It keeps
-            # increasing for continuous heating devices where chargedEnergy is
-            # a per-session counter and may stay at 0.
+            # increasing for IntegratedDevice loadpoints (heatpump, sgready-
+            # relay, …) where chargedEnergy stays at 0 because EVCC has no
+            # session semantics for "always connected" chargers. Fall back to
+            # chargedEnergy / 1000 when the meter value is missing.
             total_import = float(lp.charge_total_import or 0.0)
             if total_import > 0:
-                s["/Ac/Energy/Forward"] = total_import
+                candidate = total_import
             elif status != STATUS_DISCONNECTED:
-                s["/Ac/Energy/Forward"] = float(lp.charged_energy) / 1000.0
+                candidate = float(lp.charged_energy) / 1000.0
+            else:
+                candidate = None
+
+            if candidate is not None:
+                # /Ac/Energy/Forward must be monotonic for VRM. Guard against
+                # transient source switches (e.g. EVCC briefly returning
+                # chargeTotalImport: null) rolling the counter backwards.
+                previous = float(s["/Ac/Energy/Forward"] or 0.0)
+                s["/Ac/Energy/Forward"] = max(candidate, previous)
+
             if status != STATUS_DISCONNECTED:
                 s["/ChargingTime"] = int(lp.charge_duration_ns) // 1_000_000_000
 
