@@ -60,7 +60,8 @@ def preflight_check_di_collisions(bus, di_range) -> None:
 
 class LoadpointSync:
     def __init__(self, client: EvccClient, store: StateStore, bus_factory,
-                 mgmt_connection: str = "EVCC REST API") -> None:
+                 mgmt_connection: str = "EVCC REST API",
+                 ac_position: int = 0) -> None:
         # bus_factory() returns a FRESH dbus connection per loadpoint. A single
         # shared connection cannot host more than one VeDbusService: each one
         # registers a VeDbusRootExport at object path '/', and dbus-python
@@ -70,6 +71,7 @@ class LoadpointSync:
         self.store = store
         self.bus_factory = bus_factory
         self.mgmt_connection = mgmt_connection
+        self.ac_position = ac_position
         self._services: Dict[str, LoadpointDbusService] = {}
         self._offline_titles: Set[str] = set()
 
@@ -116,6 +118,7 @@ class LoadpointSync:
                     svc = LoadpointDbusService(
                         service_name, di, lp.title, bus=self.bus_factory(),
                         mgmt_connection=self.mgmt_connection,
+                        ac_position=self.ac_position,
                     )
                 except Exception:
                     logger.exception(

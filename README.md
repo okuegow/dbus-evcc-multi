@@ -98,6 +98,7 @@ firmware updates.
 |---|---|---|
 | `DEFAULT` | `PollSeconds` | Poll interval in seconds (default 15) |
 | `DEFAULT` | `DeviceInstanceRangeStart` / `End` | DeviceInstance range (default 40–59) |
+| `DEFAULT` | `AcPosition` | `0` = AC-Out / essential loads (default), `1` = AC-In / grid side |
 | `ONPREMISE` | `Host` | `<ip>:<port>` of your EVCC host |
 | `VRM_TUNNEL` | `Enabled` | Show the VRM "Control panel" button (default `false`) |
 | `VRM_TUNNEL` | `AdvertiseIp` | The LAN IP VRM should tunnel to (the GX or EVCC host) |
@@ -122,6 +123,12 @@ writes the mapping to `state.json`.
 
 ## Good to know
 
+- **`AcPosition` only moves the chargers in the GUI**, and only on a system that
+  actually measures AC-input loads (a Multi plus a grid meter, so that
+  `/Ac/ConsumptionOnInput` carries values). Verified on Venus OS v3.80~39: with
+  `AcPosition = 1` the EVCS tile hangs off the grid-side branch, with `0` off
+  the inverter output. `dbus-systemcalc-py` never reads `/Position` for
+  evcharger services, so no system total changes either way.
 - **Add a loadpoint in EVCC** → it appears automatically on the next poll with
   a stable DeviceInstance.
 - **Reorder loadpoints in EVCC** → no effect; identity stays with the title.

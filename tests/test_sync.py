@@ -19,13 +19,14 @@ def mock_dbus_service_class(monkeypatch):
     instances = {}
 
     def factory(service_name, device_instance, title, bus=None,
-                mgmt_connection=None):
+                mgmt_connection=None, ac_position=0):
         m = MagicMock(name="DbusSvc[" + title + "]")
         m.service_name = service_name
         m.device_instance = device_instance
         m.title = title
         m.bus = bus
         m.mgmt_connection = mgmt_connection
+        m.ac_position = ac_position
         instances[title] = m
         return m
 
@@ -292,7 +293,7 @@ def test_dbus_service_construction_failure_skipped(
     instances = {}
 
     def factory(service_name, device_instance, title, bus=None,
-                mgmt_connection=None):
+                mgmt_connection=None, ac_position=0):
         if title == "HeatingElement":
             raise RuntimeError("simulated bus failure for HeatingElement")
         m = MagicMock()
@@ -329,7 +330,7 @@ def test_update_exception_in_one_lp_does_not_kill_tick(
     instances = {}
 
     def factory(service_name, device_instance, title, bus=None,
-                mgmt_connection=None):
+                mgmt_connection=None, ac_position=0):
         m = MagicMock()
         m.service_name = service_name
         m.device_instance = device_instance
@@ -365,7 +366,7 @@ def test_mark_disconnected_exception_does_not_kill_tick(
     instances = {}
 
     def factory(service_name, device_instance, title, bus=None,
-                mgmt_connection=None):
+                mgmt_connection=None, ac_position=0):
         m = MagicMock()
         m.service_name = service_name
         m.device_instance = device_instance
@@ -422,3 +423,32 @@ def test_mgmt_connection_defaults_to_rest_api(
     sync_.tick()
     for m in mock_dbus_service_class.values():
         assert m.mgmt_connection == "EVCC REST API"
+
+
+def test_ac_position_passed_to_new_services(
+    tmp_path, requests_mock, mock_dbus_service_class
+):
+    _arm(requests_mock, "evcc_state_3lp.json")
+    sync_ = LoadpointSync(
+        EvccClient("evcc:7070"),
+        StateStore(tmp_path / "state.json", di_range=(40, 59)),
+        bus_factory=lambda: MagicMock(name="bus"),
+        ac_position=1,
+    )
+    sync_.tick()
+    for m in mock_dbus_service_class.values():
+        assert m.ac_position == 1
+
+
+def test_ac_position_defaults_to_ac_out(
+    tmp_path, requests_mock, mock_dbus_service_class
+):
+    _arm(requests_mock, "evcc_state_3lp.json")
+    sync_ = LoadpointSync(
+        EvccClient("evcc:7070"),
+        StateStore(tmp_path / "state.json", di_range=(40, 59)),
+        bus_factory=lambda: MagicMock(name="bus"),
+    )
+    sync_.tick()
+    for m in mock_dbus_service_class.values():
+        assert m.ac_position == 0

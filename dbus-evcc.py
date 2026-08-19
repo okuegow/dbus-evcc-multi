@@ -86,6 +86,7 @@ def main(argv=None) -> int:
     sync = LoadpointSync(
         client, store, bus_factory=lambda: dbus.SystemBus(private=True),
         mgmt_connection=mgmt_connection,
+        ac_position=settings.ac_position,
     )
 
     logger.info(

@@ -5,13 +5,15 @@ import pytest
 from cli import Settings, parse_args, read_config, resolve_settings
 
 
-def _make_cp(host="evcc:7070", poll=15, lo=40, hi=59):
+def _make_cp(host="evcc:7070", poll=15, lo=40, hi=59, ac_position=None):
     cp = configparser.ConfigParser()
     cp["DEFAULT"] = {
         "PollSeconds": str(poll),
         "DeviceInstanceRangeStart": str(lo),
         "DeviceInstanceRangeEnd": str(hi),
     }
+    if ac_position is not None:
+        cp["DEFAULT"]["AcPosition"] = str(ac_position)
     cp["ONPREMISE"] = {"Host": host}
     return cp
 
@@ -47,7 +49,8 @@ def test_read_config_parses_existing(tmp_path):
 
 def test_resolve_settings_happy_path():
     s = resolve_settings(_make_cp())
-    assert s == Settings(host="evcc:7070", poll_seconds=15, di_lo=40, di_hi=59)
+    assert s == Settings(host="evcc:7070", poll_seconds=15, di_lo=40, di_hi=59,
+                         ac_position=0)
 
 
 def test_resolve_settings_strips_host_whitespace():
@@ -62,6 +65,17 @@ def test_resolve_settings_uses_fallbacks_for_missing_keys():
     assert s.poll_seconds == 15
     assert s.di_lo == 40
     assert s.di_hi == 59
+    assert s.ac_position == 0
+
+
+def test_resolve_settings_reads_ac_position_ac_in():
+    s = resolve_settings(_make_cp(ac_position=1))
+    assert s.ac_position == 1
+
+
+def test_resolve_settings_rejects_invalid_ac_position():
+    with pytest.raises(ValueError, match="AcPosition"):
+        resolve_settings(_make_cp(ac_position=2))
 
 
 def test_resolve_settings_rejects_zero_poll():

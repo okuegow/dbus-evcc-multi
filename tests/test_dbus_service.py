@@ -11,7 +11,8 @@ from dbus_service import (
 from evcc_api import Loadpoint
 
 
-def _make_svc(monkeypatch, deviceinstance=56, title="HeatingElement"):
+def _make_svc(monkeypatch, deviceinstance=56, title="HeatingElement",
+              ac_position=0):
     fake_vedbus = MagicMock()
     fake_vedbus.__enter__ = MagicMock(return_value=fake_vedbus)
     fake_vedbus.__exit__ = MagicMock(return_value=False)
@@ -32,6 +33,7 @@ def _make_svc(monkeypatch, deviceinstance=56, title="HeatingElement"):
         device_instance=deviceinstance,
         title=title,
         bus=fake_bus,
+        ac_position=ac_position,
     )
     return svc, fake_vedbus, captured
 
@@ -327,3 +329,17 @@ def test_custom_mgmt_connection_is_used(monkeypatch):
     added = {c.args[0]: c.args[1] for c in fake_vedbus.add_path.call_args_list
              if len(c.args) >= 2}
     assert added["/Mgmt/Connection"] == "Modbus TCP 172.20.4.135"
+
+
+def _added_paths(vedbus):
+    return {call.args[0]: call.args[1] for call in vedbus.add_path.call_args_list}
+
+
+def test_position_defaults_to_ac_out(monkeypatch):
+    svc, vedbus, _ = _make_svc(monkeypatch)
+    assert _added_paths(vedbus)["/Position"] == 0
+
+
+def test_position_follows_ac_position_setting(monkeypatch):
+    svc, vedbus, _ = _make_svc(monkeypatch, ac_position=1)
+    assert _added_paths(vedbus)["/Position"] == 1

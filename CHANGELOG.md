@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- `AcPosition` setting in `config.ini` (`0` = AC-Out, default; `1` = AC-In).
+  It is published as `/Position` on every charger service and decides which
+  loads branch the Venus GUI draws the chargers on. Verified on Venus OS
+  v3.80~39; the system consumption figures are unaffected because
+  `dbus-systemcalc-py` reads `/Position` for PV inverters only.
+
 ## [2.3] - 2026-05-23
 
 First public release.

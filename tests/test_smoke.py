@@ -17,7 +17,7 @@ def test_two_polls_full_cycle(tmp_path, requests_mock, monkeypatch):
     instances = {}
 
     def factory(service_name, device_instance, title, bus=None,
-                mgmt_connection=None):
+                mgmt_connection=None, ac_position=0):
         m = MagicMock()
         m.service_name = service_name
         m.device_instance = device_instance
@@ -56,7 +56,7 @@ def test_smoke_handles_evcc_drop_and_recover(tmp_path, requests_mock, monkeypatc
     instances = {}
 
     def factory(service_name, device_instance, title, bus=None,
-                mgmt_connection=None):
+                mgmt_connection=None, ac_position=0):
         m = MagicMock()
         m.service_name = service_name
         m.device_instance = device_instance

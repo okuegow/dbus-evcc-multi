@@ -67,11 +67,12 @@ class LoadpointDbusService:
     PRODUCT_VERSION = "v2.2"
 
     def __init__(self, service_name, device_instance, title, bus,
-                 mgmt_connection="EVCC REST API"):
+                 mgmt_connection="EVCC REST API", ac_position=0):
         self.service_name = service_name
         self.device_instance = device_instance
         self.title = title
         self.mgmt_connection = mgmt_connection
+        self.ac_position = ac_position
         # register=False -> all mandatory paths added first, then explicit
         # register() so dbusmonitor.py never sees an incomplete service.
         self._svc = VeDbusService(service_name, bus=bus, register=False)
@@ -95,7 +96,7 @@ class LoadpointDbusService:
         s.add_path("/HardwareVersion", 2)
         s.add_path("/Connected", 1)
         s.add_path("/UpdateIndex", 0)
-        s.add_path("/Position", 0)
+        s.add_path("/Position", self.ac_position)
         s.add_path("/Status", None)
         s.add_path("/Mode", None)
         s.add_path("/StartStop", 0, gettextcallback=_fmt_int, writeable=False)

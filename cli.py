@@ -17,6 +17,7 @@ class Settings(NamedTuple):
     poll_seconds: int
     di_lo: int
     di_hi: int
+    ac_position: int
 
 
 def parse_args(argv):
@@ -46,6 +47,7 @@ def resolve_settings(cp: configparser.ConfigParser) -> Settings:
     poll_s = cp.getint("DEFAULT", "PollSeconds", fallback=15)
     di_lo = cp.getint("DEFAULT", "DeviceInstanceRangeStart", fallback=40)
     di_hi = cp.getint("DEFAULT", "DeviceInstanceRangeEnd", fallback=59)
+    ac_position = cp.getint("DEFAULT", "AcPosition", fallback=0)
     if poll_s < 1:
         raise ValueError("PollSeconds must be >= 1, got %d" % poll_s)
     if di_lo > di_hi:
@@ -57,7 +59,12 @@ def resolve_settings(cp: configparser.ConfigParser) -> Settings:
             "DeviceInstance range must lie within [0, 255]; got [%d, %d]"
             % (di_lo, di_hi)
         )
-    return Settings(host=host, poll_seconds=poll_s, di_lo=di_lo, di_hi=di_hi)
+    if ac_position not in (0, 1):
+        raise ValueError(
+            "AcPosition must be 0 (AC-Out) or 1 (AC-In), got %d" % ac_position
+        )
+    return Settings(host=host, poll_seconds=poll_s, di_lo=di_lo, di_hi=di_hi,
+                    ac_position=ac_position)
 
 
 class TunnelSettings(NamedTuple):
