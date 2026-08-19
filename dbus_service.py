@@ -172,7 +172,7 @@ class LoadpointDbusService:
                 s["/Ac/Energy/Forward"] = max(candidate, previous)
 
             if status != STATUS_DISCONNECTED:
-                s["/ChargingTime"] = int(lp.charge_duration_ns) // 1_000_000_000
+                s["/ChargingTime"] = int(lp.charge_duration_s)
 
             idx = (int(s["/UpdateIndex"]) + 1) % 256
             s["/UpdateIndex"] = idx

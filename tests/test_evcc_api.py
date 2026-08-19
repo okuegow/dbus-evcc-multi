@@ -128,3 +128,27 @@ def test_client_close_releases_session():
     s = client.session
     client.close()
     assert client.session is not s
+
+
+def test_charge_duration_nanoseconds_are_converted():
+    """Older EVCC releases marshal chargeDuration as Go nanoseconds."""
+    lps = _parse_loadpoints({"loadpoints": [
+        {"title": "Carport", "chargeDuration": 3_600_000_000_000},
+    ]})
+    assert lps[0].charge_duration_s == 3600
+
+
+def test_charge_duration_seconds_are_taken_as_is():
+    """EVCC 0.307.1 reports plain seconds (verified on a live /api/state)."""
+    lps = _parse_loadpoints({"loadpoints": [
+        {"title": "Carport", "chargeDuration": 15545},
+    ]})
+    assert lps[0].charge_duration_s == 15545
+
+
+def test_charge_duration_missing_or_junk_is_zero():
+    lps = _parse_loadpoints({"loadpoints": [
+        {"title": "A"}, {"title": "B", "chargeDuration": None},
+        {"title": "C", "chargeDuration": "x"}, {"title": "D", "chargeDuration": -5},
+    ]})
+    assert [lp.charge_duration_s for lp in lps] == [0, 0, 0, 0]

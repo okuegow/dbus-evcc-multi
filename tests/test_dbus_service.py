@@ -122,7 +122,7 @@ def test_update_charging_uses_per_phase_voltages(monkeypatch):
         charge_voltages=[229.0, 231.0, 232.5],
         effective_max_current=20,
         charged_energy=1800.0,
-        charge_duration_ns=3_600_000_000_000,
+        charge_duration_s=3600,
     )
     svc.update(lp)
     sets = dict(c.args for c in vedbus.__setitem__.call_args_list)

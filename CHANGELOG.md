@@ -13,6 +13,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   v3.80~39; the system consumption figures are unaffected because
   `dbus-systemcalc-py` reads `/Position` for PV inverters only.
 
+### Fixed
+- `chargeDuration` is now read in the unit EVCC actually sends. Up to some
+  release it was Go nanoseconds; EVCC 0.307.1 sends plain seconds, which the
+  old `// 1_000_000_000` turned into 0, so the charging time stayed empty.
+  Values at or above 1e9 are read as nanoseconds, everything below as seconds.
+
 ## [2.3] - 2026-05-23
 
 First public release.

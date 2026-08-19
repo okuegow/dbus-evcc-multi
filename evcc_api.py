@@ -27,7 +27,26 @@ class Loadpoint:
     effective_max_current: int = 16
     charged_energy: float = 0.0
     charge_total_import: float = 0.0
-    charge_duration_ns: int = 0
+    charge_duration_s: int = 0
+
+
+# EVCC changed the unit of chargeDuration: older releases marshalled Go's
+# time.Duration as nanoseconds, 0.307.1 reports plain seconds (verified against
+# a live /api/state: 25250 Wh charged over chargeDuration 15545 -> 5.8 kW mean,
+# which only works out in seconds). Anything at or above 1e9 is therefore read
+# as nanoseconds, everything below as seconds. A sub-second session rounds to 0
+# under either reading, so the boundary is unambiguous.
+_NS_THRESHOLD = 1_000_000_000
+
+
+def _duration_seconds(raw) -> int:
+    try:
+        value = int(raw or 0)
+    except (TypeError, ValueError):
+        return 0
+    if value < 0:
+        return 0
+    return value // _NS_THRESHOLD if value >= _NS_THRESHOLD else value
 
 
 def _normalize_triple(value, default: float) -> List[float]:
@@ -63,7 +82,7 @@ def _parse_loadpoints(state: dict) -> List[Loadpoint]:
             effective_max_current=int(raw.get("effectiveMaxCurrent") or 16),
             charged_energy=float(raw.get("chargedEnergy") or 0.0),
             charge_total_import=float(raw.get("chargeTotalImport") or 0.0),
-            charge_duration_ns=int(raw.get("chargeDuration") or 0),
+            charge_duration_s=_duration_seconds(raw.get("chargeDuration")),
         ))
     return out
 
