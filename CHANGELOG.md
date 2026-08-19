@@ -12,6 +12,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   loads branch the Venus GUI draws the chargers on. Verified on Venus OS
   v3.80~39; the system consumption figures are unaffected because
   `dbus-systemcalc-py` reads `/Position` for PV inverters only.
+- `/Session/Energy` (kWh) and `/Session/Time` (seconds) on every charger
+  service. The gui-v2 overview reads the current session from those paths;
+  without them the new GUI showed no session energy and no charging time.
+  The legacy `/Ac/Energy/Forward` and `/ChargingTime` paths are unchanged.
 
 ### Fixed
 - `chargeDuration` is now read in the unit EVCC actually sends. Up to some

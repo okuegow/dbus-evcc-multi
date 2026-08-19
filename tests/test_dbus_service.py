@@ -343,3 +343,36 @@ def test_position_defaults_to_ac_out(monkeypatch):
 def test_position_follows_ac_position_setting(monkeypatch):
     svc, vedbus, _ = _make_svc(monkeypatch, ac_position=1)
     assert _added_paths(vedbus)["/Position"] == 1
+
+
+def test_session_paths_registered(monkeypatch):
+    svc, vedbus, _ = _make_svc(monkeypatch)
+    paths = _added_paths(vedbus)
+    assert paths["/Session/Energy"] == 0
+    assert paths["/Session/Time"] == 0
+
+
+def test_session_values_follow_evcc_session(monkeypatch):
+    svc, vedbus, _ = _make_svc(monkeypatch)
+    vedbus.__getitem__.return_value = 0
+    lp = Loadpoint(
+        title="Carport", connected=True, charging=True, mode="pv",
+        charged_energy=1800.0,            # Wh
+        charge_duration_s=3600,
+    )
+    svc.update(lp)
+    sets = dict(c.args for c in vedbus.__setitem__.call_args_list)
+    assert sets["/Session/Energy"] == 1.8   # kWh
+    assert sets["/Session/Time"] == 3600    # seconds
+
+
+def test_session_values_published_while_disconnected(monkeypatch):
+    """EVCC zeroes the session on unplug; the GUI must follow, unlike the
+    cumulative /Ac/Energy/Forward counter."""
+    svc, vedbus, _ = _make_svc(monkeypatch)
+    vedbus.__getitem__.return_value = 0
+    lp = Loadpoint(title="Carport", connected=False, charging=False, mode="pv")
+    svc.update(lp)
+    sets = dict(c.args for c in vedbus.__setitem__.call_args_list)
+    assert sets["/Session/Energy"] == 0.0
+    assert sets["/Session/Time"] == 0

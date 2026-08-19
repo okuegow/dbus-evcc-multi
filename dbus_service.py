@@ -109,6 +109,12 @@ class LoadpointDbusService:
         # keep the last value so VRM history doesn't zero out on cable unplug.
         s.add_path("/Ac/Energy/Forward", 0, gettextcallback=_fmt_kwh, writeable=False)
         s.add_path("/ChargingTime", 0, gettextcallback=_fmt_s, writeable=False)
+        # gui-v2 (Venus OS 3.5x+) reads the CURRENT SESSION from /Session/*,
+        # not from the cumulative paths above: /Session/Energy in kWh,
+        # /Session/Time in seconds. Without them the new GUI shows no session
+        # energy and no charging time for our chargers.
+        s.add_path("/Session/Energy", 0, gettextcallback=_fmt_kwh, writeable=False)
+        s.add_path("/Session/Time", 0, gettextcallback=_fmt_s, writeable=False)
         s.add_path("/Current", 0, gettextcallback=_fmt_a, writeable=False)
         s.add_path("/SetCurrent", 0, gettextcallback=_fmt_a, writeable=False)
         s.add_path("/MaxCurrent", 0, gettextcallback=_fmt_a, writeable=False)
@@ -171,8 +177,14 @@ class LoadpointDbusService:
                 previous = float(s["/Ac/Energy/Forward"] or 0.0)
                 s["/Ac/Energy/Forward"] = max(candidate, previous)
 
+            # Session values come straight from EVCC and reset with the
+            # session, so they are published in every state - including
+            # DISCONNECTED, where EVCC zeroes them.
+            session_seconds = int(lp.charge_duration_s)
+            s["/Session/Energy"] = float(lp.charged_energy) / 1000.0
+            s["/Session/Time"] = session_seconds
             if status != STATUS_DISCONNECTED:
-                s["/ChargingTime"] = int(lp.charge_duration_s)
+                s["/ChargingTime"] = session_seconds
 
             idx = (int(s["/UpdateIndex"]) + 1) % 256
             s["/UpdateIndex"] = idx
