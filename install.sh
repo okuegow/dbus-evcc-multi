@@ -11,29 +11,47 @@ chmod 755 "$SCRIPT_DIR/service/run" "$SCRIPT_DIR/service/log/run"
 # Ensure log directory exists (multilog needs it writable)
 mkdir -p "/data/log/$SERVICE_NAME"
 
-# Symlink into daemontools. On FIRST install we drop a 'down' marker so
+# Symlink into daemontools. On the FIRST install we drop a 'down' marker so
 # supervise does not auto-start the bridge before the operator has run
-# seed_state.py (otherwise fresh DIs get allocated and the legacy title->DI
-# mapping is lost). On re-install (e.g. rc.local re-entry after reboot) the
-# symlink already exists -> no 'down' file is created -> service comes back up.
+# seed_state.py (otherwise fresh DeviceInstances get allocated and the legacy
+# title->DI mapping is lost).
+#
+# /service is a tmpfs, so after a reboot the symlink is gone and rc.local runs
+# this script again. That must NOT look like a first install - it used to drop
+# the 'down' marker again and the bridge stayed off until someone noticed the
+# chargers missing in VRM. The marker file below survives the reboot and tells
+# the two cases apart.
+INSTALL_MARKER="$SCRIPT_DIR/.installed"
 if [ ! -L "/service/$SERVICE_NAME" ]; then
-    touch "$SCRIPT_DIR/service/down"
-    ln -s "$SCRIPT_DIR/service" "/service/$SERVICE_NAME"
-    echo "Created /service/$SERVICE_NAME (in 'down' state - not running yet)"
-    FIRST_INSTALL=1
+    if [ -f "$INSTALL_MARKER" ]; then
+        rm -f "$SCRIPT_DIR/service/down"
+        ln -s "$SCRIPT_DIR/service" "/service/$SERVICE_NAME"
+        echo "Re-created /service/$SERVICE_NAME after reboot (service will start)"
+        FIRST_INSTALL=0
+    else
+        touch "$SCRIPT_DIR/service/down"
+        ln -s "$SCRIPT_DIR/service" "/service/$SERVICE_NAME"
+        echo "Created /service/$SERVICE_NAME (in 'down' state - not running yet)"
+        FIRST_INSTALL=1
+    fi
 else
     echo "Service symlink already exists, skipping"
     FIRST_INSTALL=0
 fi
+touch "$INSTALL_MARKER"
 
 # Persist across firmware updates via rc.local
 filename=/data/rc.local
 if [ ! -f "$filename" ]; then
     touch "$filename"
-    chmod 755 "$filename"
     echo "#!/bin/bash" >> "$filename"
     echo >> "$filename"
 fi
+# Venus only runs /data/rc.local when it is executable
+# (/etc/init.d/custom-rc-late.sh: `if [ -x /data/rc.local ]`). An existing but
+# non-executable file is the silent way to lose the bridge after a reboot, so
+# fix the mode on every install, not just when we create the file.
+chmod 755 "$filename"
 grep -qxF "$SCRIPT_DIR/install.sh" "$filename" || echo "$SCRIPT_DIR/install.sh" >> "$filename"
 
 # The legacy single-loadpoint bridges leave their own line in rc.local; their

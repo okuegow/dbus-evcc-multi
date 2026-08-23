@@ -71,6 +71,9 @@ fi
 
 # Reset any leftover 'down' marker so a re-install starts cleanly
 rm -f "$SCRIPT_DIR/service/down"
+# Forget that we were ever installed, so a later install.sh starts from the
+# guarded first-install path again instead of coming straight up.
+rm -f "$SCRIPT_DIR/.installed"
 
 echo
 if [ "$FAILED" = "0" ]; then

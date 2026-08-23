@@ -46,6 +46,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   write, so no migration step is needed.
 
 ### Fixed
+- **The bridge now survives a reboot.** `/service` is a tmpfs, so rc.local
+  re-runs `install.sh` on every boot - and that looked like a first install,
+  which dropped the `down` marker again and left the bridge off until someone
+  noticed the chargers missing in VRM. A persistent `.installed` marker now
+  tells the two cases apart.
+- `install.sh` makes `/data/rc.local` executable on every run. Venus only runs
+  it when it is (`/etc/init.d/custom-rc-late.sh`: `if [ -x /data/rc.local ]`),
+  and a non-executable file silently disabled the autostart.
 - `service/run` no longer restarts the bridge in a tight loop after a
   configuration error. daemontools respawns immediately, and that spin is
   enough to trip the Venus load watchdog (`/etc/watchdog.conf`: `max-load-5 =
