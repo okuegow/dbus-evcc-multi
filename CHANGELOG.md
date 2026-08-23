@@ -46,6 +46,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   write, so no migration step is needed.
 
 ### Fixed
+- `service/run` no longer restarts the bridge in a tight loop after a
+  configuration error. daemontools respawns immediately, and that spin is
+  enough to trip the Venus load watchdog (`/etc/watchdog.conf`: `max-load-5 =
+  10`, `max-load-15 = 6`), which reboots the GX. It now waits 30 s and logs the
+  exit code.
 - `chargeDuration` is now read in the unit EVCC actually sends. Up to some
   release it was Go nanoseconds; EVCC 0.307.1 sends plain seconds, which the
   old `// 1_000_000_000` turned into 0, so the charging time stayed empty.

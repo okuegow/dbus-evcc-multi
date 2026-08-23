@@ -3,4 +3,17 @@
 SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" 2>/dev/null && pwd)
 
 exec 2>&1
-exec python3 "$SCRIPT_DIR/../dbus-evcc.py"
+
+# NOT exec: we need to see the exit code. dbus-evcc.py exits non-zero on a
+# configuration error (bad VRM_TUNNEL settings, DeviceInstance collision).
+# daemontools would then restart it immediately, and that spin costs enough
+# CPU to trip the Venus load watchdog (/etc/watchdog.conf: max-load-5 = 10,
+# max-load-15 = 6, and it reboots the GX). Back off instead, and keep logging
+# so the reason stays visible.
+python3 "$SCRIPT_DIR/../dbus-evcc.py"
+rc=$?
+if [ "$rc" -ne 0 ]; then
+    echo "dbus-evcc-multi exited with code $rc - waiting 30s before restart"
+    sleep 30
+fi
+exit "$rc"
