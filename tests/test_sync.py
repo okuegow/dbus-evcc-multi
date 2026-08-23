@@ -19,7 +19,8 @@ def mock_dbus_service_class(monkeypatch):
     instances = {}
 
     def factory(service_name, device_instance, title, bus=None,
-                mgmt_connection=None, ac_position=0):
+                mgmt_connection=None, ac_position=0, evcc_version="",
+                energy=None):
         m = MagicMock(name="DbusSvc[" + title + "]")
         m.service_name = service_name
         m.device_instance = device_instance
@@ -27,6 +28,7 @@ def mock_dbus_service_class(monkeypatch):
         m.bus = bus
         m.mgmt_connection = mgmt_connection
         m.ac_position = ac_position
+        m.energy = energy
         instances[title] = m
         return m
 
@@ -293,7 +295,8 @@ def test_dbus_service_construction_failure_skipped(
     instances = {}
 
     def factory(service_name, device_instance, title, bus=None,
-                mgmt_connection=None, ac_position=0):
+                mgmt_connection=None, ac_position=0, evcc_version="",
+                energy=None):
         if title == "HeatingElement":
             raise RuntimeError("simulated bus failure for HeatingElement")
         m = MagicMock()
@@ -330,7 +333,8 @@ def test_update_exception_in_one_lp_does_not_kill_tick(
     instances = {}
 
     def factory(service_name, device_instance, title, bus=None,
-                mgmt_connection=None, ac_position=0):
+                mgmt_connection=None, ac_position=0, evcc_version="",
+                energy=None):
         m = MagicMock()
         m.service_name = service_name
         m.device_instance = device_instance
@@ -366,7 +370,8 @@ def test_mark_disconnected_exception_does_not_kill_tick(
     instances = {}
 
     def factory(service_name, device_instance, title, bus=None,
-                mgmt_connection=None, ac_position=0):
+                mgmt_connection=None, ac_position=0, evcc_version="",
+                energy=None):
         m = MagicMock()
         m.service_name = service_name
         m.device_instance = device_instance
@@ -452,3 +457,32 @@ def test_ac_position_defaults_to_ac_out(
     sync_.tick()
     for m in mock_dbus_service_class.values():
         assert m.ac_position == 0
+
+
+def test_energy_counter_is_handed_to_the_service_and_persisted(
+    tmp_path, requests_mock, mock_dbus_service_class
+):
+    """The counter must come from state.json and go back into it, otherwise a
+    restart would republish EVCC's raw total and VRM would log a step."""
+    _arm(requests_mock, "evcc_state_3lp.json")
+    state_path = tmp_path / "state.json"
+    store = StateStore(state_path, di_range=(40, 59))
+    store.seed({"Wallbox": 49})
+    store.seed_energy({"Wallbox": 812.4})
+
+    sync_ = LoadpointSync(
+        EvccClient("evcc:7070"), store,
+        bus_factory=lambda: MagicMock(name="bus"),
+    )
+    sync_.tick()
+
+    counter = mock_dbus_service_class["Wallbox"].energy
+    assert counter is not None
+    assert counter.adopt == 812.4
+
+    # The service publishes; sync must write the resulting offset back.
+    counter.value(17010.75)
+    sync_.tick()
+    reloaded = StateStore(state_path, di_range=(40, 59))
+    assert reloaded.energy_counter("Wallbox").adopt is None
+    assert round(reloaded.energy_counter("Wallbox").value(17010.75), 3) == 812.4

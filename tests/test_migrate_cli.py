@@ -13,6 +13,12 @@ import pytest
 import migrate_from_lp as cli
 
 
+
+def _di_map(path):
+    """title -> DeviceInstance from the v2 state file."""
+    data = json.loads(path.read_text() if hasattr(path, "read_text") else path)
+    return {t: r["deviceinstance"] for t, r in data["loadpoints"].items()}
+
 BRUCKSCH_INI = """\
 [DEFAULT]
 AccessType = OnPremise
@@ -91,7 +97,7 @@ def test_auto_mode_seeds_exact_name_matches(tmp_path, requests_mock, capsys):
     out = capsys.readouterr().out
     assert "Seeded 2" in out
     assert state_path.exists()
-    data = json.loads(state_path.read_text())
+    data = _di_map(state_path)
     assert data == {"HeatingElement": 56, "Garage": 49}
 
 
@@ -111,7 +117,7 @@ def test_auto_mode_skips_needs_operator(tmp_path, requests_mock, capsys):
         "--auto",
     ])
     assert rc == 0
-    data = json.loads(state_path.read_text())
+    data = _di_map(state_path)
     assert data == {"HeatingElement": 56}  # weirdname skipped
 
 
@@ -193,7 +199,7 @@ def test_interactive_accepts_with_default_yes(tmp_path, requests_mock, monkeypat
         "--state-path", str(state_path),
     ])
     assert rc == 0
-    assert json.loads(state_path.read_text()) == {"HeatingElement": 56}
+    assert _di_map(state_path) == {"HeatingElement": 56}
 
 
 def test_interactive_skips_on_no(tmp_path, requests_mock, monkeypatch, capsys):
@@ -237,7 +243,7 @@ def test_interactive_accepts_override_title(tmp_path, requests_mock, monkeypatch
         "--state-path", str(state_path),
     ])
     assert rc == 0
-    assert json.loads(state_path.read_text()) == {"HeatingElement": 56}
+    assert _di_map(state_path) == {"HeatingElement": 56}
 
 
 # ----- Idempotency --------------------------------------------------------
@@ -262,7 +268,7 @@ def test_rerun_is_idempotent(tmp_path, requests_mock):
         "--auto",
     ])
     assert rc1 == 0 and rc2 == 0
-    assert json.loads(state_path.read_text()) == {"HeatingElement": 56}
+    assert _di_map(state_path) == {"HeatingElement": 56}
 
 
 # ----- Title collision in state.json --------------------------------------
@@ -286,7 +292,7 @@ def test_seeding_collision_returns_error(tmp_path, requests_mock, capsys):
     # seed() preserves existing: HeatingElement stays at 40, 56 is silently ignored
     # because setdefault won't overwrite. So state.json is unchanged.
     assert rc == 0
-    data = json.loads(state_path.read_text())
+    data = _di_map(state_path)
     assert data["HeatingElement"] == 40
 
 
@@ -459,7 +465,7 @@ def test_final_confirm_table_shown_with_free_form_overrides(
     out = capsys.readouterr().out
     assert "Will seed" in out  # final table
     assert "HeatingElement" in out
-    assert json.loads(state_path.read_text()) == {"HeatingElement": 56}
+    assert _di_map(state_path) == {"HeatingElement": 56}
 
 
 def test_final_confirm_aborts_on_no(
@@ -537,3 +543,14 @@ def test_uninstall_dry_run_does_not_invoke(tmp_path, requests_mock, monkeypatch)
     # --dry-run path: state.json never written, so nothing is "applied",
     # and uninstall section is unreachable. Either way: no script run.
     assert invoked == []
+
+
+def test_prompt_survives_closed_stdin(capsys):
+    """Running the migrator non-interactively (ssh host cmd, cron) must end in
+    the manual-mapping hint, not an EOFError traceback."""
+    from migrate_from_lp import _ask
+
+    def closed(_question):
+        raise EOFError
+
+    assert _ask(closed, "title? ") == ""

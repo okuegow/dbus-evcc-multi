@@ -1,4 +1,14 @@
-"""Persistent {loadpoint_title -> DeviceInstance} map.
+"""Persistent per-loadpoint state: DeviceInstance plus energy continuity.
+
+On-disk format v2:
+
+    {"version": 2,
+     "loadpoints": {"Carport": {"deviceinstance": 49,
+                                "energy_offset": -17008.5,
+                                "energy_source": 17010.75}}}
+
+The v1 format ({"Carport": 49}) is still read and is rewritten as v2 on the
+next write, so upgrading an installed bridge needs no migration step.
 
 Critical invariants:
   - A title that has ever been seen keeps its DI for the lifetime of the file.
@@ -15,8 +25,9 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 
+from energy import EnergyCounter
 from log_setup import LOGGER_NAME
 
 logger = logging.getLogger(LOGGER_NAME)
@@ -40,10 +51,14 @@ class StateStore:
         self.lo, self.hi = di_range
         if self.lo > self.hi:
             raise ValueError("Invalid DI range: %r" % (di_range,))
-        self._map: Dict[str, int] = self._load()
+        # title -> {"deviceinstance": int, "energy_*": ...}
+        self._records: Dict[str, dict] = self._load()
+        self._map: Dict[str, int] = {
+            t: r["deviceinstance"] for t, r in self._records.items()
+        }
         self._validate_map(self._map)
 
-    def _load(self) -> Dict[str, int]:
+    def _load(self) -> Dict[str, dict]:
         if not self.path.exists():
             return {}
         try:
@@ -51,8 +66,21 @@ class StateStore:
                 data = json.load(f)
             if not isinstance(data, dict):
                 raise ValueError("state file is not a JSON object")
-            return {str(k): int(v) for k, v in data.items()}
-        except (OSError, ValueError, TypeError) as e:
+            if data.get("version") == 2:
+                raw = data.get("loadpoints") or {}
+                if not isinstance(raw, dict):
+                    raise ValueError("'loadpoints' is not a JSON object")
+                out = {}
+                for title, rec in raw.items():
+                    if not isinstance(rec, dict):
+                        raise ValueError("entry %r is not an object" % title)
+                    rec = dict(rec)
+                    rec["deviceinstance"] = int(rec["deviceinstance"])
+                    out[str(title)] = rec
+                return out
+            # v1: flat {title: deviceinstance}
+            return {str(k): {"deviceinstance": int(v)} for k, v in data.items()}
+        except (OSError, ValueError, TypeError, KeyError) as e:
             logger.warning(
                 "Could not load state file %s (%s) - starting empty",
                 self.path, e,
@@ -79,9 +107,10 @@ class StateStore:
             )
 
     def _flush(self) -> None:
+        payload = {"version": 2, "loadpoints": self._records}
         tmp = self.path.with_suffix(self.path.suffix + ".tmp")
         with tmp.open("w") as f:
-            json.dump(self._map, f, indent=2, sort_keys=True)
+            json.dump(payload, f, indent=2, sort_keys=True)
             f.flush()
             os.fsync(f.fileno())
         os.replace(tmp, self.path)
@@ -96,13 +125,66 @@ class StateStore:
         for title, di in mapping.items():
             proposed.setdefault(title, di)
         self._validate_map(proposed)
-        previous = self._map
+        previous_map, previous_records = self._map, dict(self._records)
         self._map = proposed
+        for title, di in proposed.items():
+            rec = dict(self._records.get(title) or {})
+            rec["deviceinstance"] = di
+            self._records[title] = rec
         try:
             self._flush()
         except OSError:
-            self._map = previous
+            self._map, self._records = previous_map, previous_records
             raise
+
+    def seed_energy(self, adopt: Dict[str, float]) -> None:
+        """Record the counter reading each title should CONTINUE from.
+
+        Used when taking a DeviceInstance over from a legacy bridge: the value
+        is the old service's /Ac/Energy/Forward, captured while it was still
+        running. Consumed by EnergyCounter on the first publish.
+        """
+        previous = dict(self._records)
+        for title, value in adopt.items():
+            rec = dict(self._records.get(title) or {})
+            if "deviceinstance" not in rec:
+                raise InvalidStateFile(
+                    "Cannot seed a counter for unknown loadpoint %r - seed the "
+                    "title->DeviceInstance mapping first" % title
+                )
+            rec["energy_adopt"] = float(value)
+            self._records[title] = rec
+        try:
+            self._flush()
+        except OSError:
+            self._records = previous
+            raise
+
+    def energy_counter(self, title: str) -> EnergyCounter:
+        """The persisted counter state for a title (fresh one if unknown)."""
+        return EnergyCounter.from_dict(self._records.get(title) or {}, title=title)
+
+    def save_energy(self, title: str, counter: EnergyCounter) -> bool:
+        """Persist the counter if it changed materially. Returns True if written."""
+        if not counter.dirty:
+            return False
+        rec = dict(self._records.get(title) or {})
+        if "deviceinstance" not in rec:
+            return False
+        rec.pop("energy_adopt", None)
+        rec.update(counter.as_dict())
+        previous = self._records.get(title)
+        self._records[title] = rec
+        try:
+            self._flush()
+        except OSError:
+            if previous is None:
+                self._records.pop(title, None)
+            else:
+                self._records[title] = previous
+            raise
+        counter.dirty = False
+        return True
 
     def get_or_allocate(self, title: str) -> int:
         if title in self._map:
@@ -113,10 +195,12 @@ class StateStore:
                 # Stage in-memory + flush; if flush raises, roll back so that
                 # callers catching the OSError don't see a phantom allocation.
                 self._map[title] = candidate
+                self._records[title] = {"deviceinstance": candidate}
                 try:
                     self._flush()
                 except OSError:
                     del self._map[title]
+                    self._records.pop(title, None)
                     raise
                 logger.info(
                     "Allocated DeviceInstance %d for loadpoint '%s'",

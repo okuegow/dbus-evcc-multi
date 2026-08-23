@@ -32,6 +32,11 @@ def parse_args(argv):
         "--config", default=None,
         help="Path to config.ini (default: next to this script)",
     )
+    parser.add_argument(
+        "--plan", action="store_true",
+        help="Show what the first start would do (DeviceInstances, energy "
+             "counters) and exit without touching the D-Bus",
+    )
     return parser.parse_args(argv)
 
 
@@ -129,3 +134,26 @@ def mgmt_connection_string(tunnel: TunnelSettings) -> str:
     if tunnel.enabled:
         return "Modbus TCP %s" % tunnel.advertise_ip
     return "EVCC REST API"
+
+
+def format_plan(rows) -> str:
+    """Human-readable table for --plan.
+
+    rows: list of dicts with title, deviceinstance, known (bool), source
+    (EVCC kWh), published (kWh the bridge would publish first), note.
+    """
+    if not rows:
+        return "EVCC reported no loadpoints - nothing to do."
+    head = "%-24s %5s %6s %14s %14s  %s" % (
+        "LOADPOINT", "DI", "KNOWN", "EVCC kWh", "PUBLISHED kWh", "NOTE")
+    lines = [head, "-" * len(head)]
+    for r in rows:
+        lines.append("%-24s %5s %6s %14s %14s  %s" % (
+            r["title"][:24],
+            r["deviceinstance"] if r["deviceinstance"] is not None else "new",
+            "yes" if r["known"] else "no",
+            "-" if r["source"] is None else "%.3f" % r["source"],
+            "-" if r["published"] is None else "%.3f" % r["published"],
+            r.get("note", ""),
+        ))
+    return "\n".join(lines)

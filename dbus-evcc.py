@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 
 from cli import (
+    format_plan,
     mgmt_connection_string,
     parse_args,
     read_config,
@@ -24,6 +25,52 @@ from evcc_api import EvccClient
 from log_setup import configure_logging
 from state_store import StateStore
 from sync import LoadpointSync, preflight_check_di_collisions
+
+
+def _print_plan(settings, config_path, logger) -> int:
+    """Dry run: what would the first start publish? Reads EVCC and state.json,
+    touches neither the D-Bus nor state.json."""
+    here = Path(__file__).resolve().parent
+    store = StateStore(here / "state.json", di_range=(settings.di_lo, settings.di_hi))
+    client = EvccClient(host=settings.host or "0.0.0.0:0")
+    try:
+        loadpoints = client.fetch_loadpoints()
+    except Exception as e:
+        logger.error("Cannot reach EVCC at %s: %s", settings.host, e)
+        return 1
+
+    known = store.snapshot()
+    free = [di for di in range(settings.di_lo, settings.di_hi + 1)
+            if di not in set(known.values())]
+    rows = []
+    for lp in loadpoints:
+        counter = store.energy_counter(lp.title)
+        source = float(lp.charge_total_import or 0.0) or None
+        if counter.adopt is not None:
+            published, note = counter.adopt, "continues the counter it took over"
+        elif source is None:
+            published, note = None, "no EVCC meter value yet"
+        elif counter.source is None:
+            published, note = source, "first start, publishes EVCC's own value"
+        else:
+            published = source + counter.offset
+            note = "offset %+.3f kWh" % counter.offset
+        di = known.get(lp.title)
+        rows.append({
+            "title": lp.title,
+            "deviceinstance": di if di is not None else (free.pop(0) if free else None),
+            "known": di is not None,
+            "source": source,
+            "published": published,
+            "note": note,
+        })
+    print(format_plan(rows))
+    print()
+    print("config: %s | EVCC: %s | DI range %d-%d | AcPosition %d"
+          % (config_path, settings.host or "<unset>", settings.di_lo,
+             settings.di_hi, settings.ac_position))
+    print("Nothing was written. Remove --plan to start the bridge.")
+    return 0
 
 
 def main(argv=None) -> int:
@@ -51,6 +98,9 @@ def main(argv=None) -> int:
             "Run the dbus-vrm-tunnel service for the button to work.",
             mgmt_connection, tunnel.advertise_ip,
         )
+
+    if args.plan:
+        return _print_plan(settings, config_path, logger)
 
     import dbus
     from dbus.mainloop.glib import DBusGMainLoop

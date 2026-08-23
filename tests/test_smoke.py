@@ -9,6 +9,12 @@ from state_store import StateStore
 from sync import LoadpointSync
 
 
+
+def _di_map(path):
+    """title -> DeviceInstance from the v2 state file."""
+    data = json.loads(path.read_text() if hasattr(path, "read_text") else path)
+    return {t: r["deviceinstance"] for t, r in data["loadpoints"].items()}
+
 def test_two_polls_full_cycle(tmp_path, requests_mock, monkeypatch):
     fixture = (
         Path(__file__).parent / "fixtures" / "evcc_state_3lp.json"
@@ -17,7 +23,8 @@ def test_two_polls_full_cycle(tmp_path, requests_mock, monkeypatch):
     instances = {}
 
     def factory(service_name, device_instance, title, bus=None,
-                mgmt_connection=None, ac_position=0):
+                mgmt_connection=None, ac_position=0, evcc_version="",
+                energy=None):
         m = MagicMock()
         m.service_name = service_name
         m.device_instance = device_instance
@@ -35,7 +42,7 @@ def test_two_polls_full_cycle(tmp_path, requests_mock, monkeypatch):
     sync_.tick()
     sync_.tick()
 
-    state = json.loads((tmp_path / "state.json").read_text())
+    state = _di_map(tmp_path / "state.json")
     assert set(state.keys()) == {"Wallbox", "HeatingElement", "Heatpump"}
     for di in state.values():
         assert 40 <= di <= 59
@@ -56,7 +63,8 @@ def test_smoke_handles_evcc_drop_and_recover(tmp_path, requests_mock, monkeypatc
     instances = {}
 
     def factory(service_name, device_instance, title, bus=None,
-                mgmt_connection=None, ac_position=0):
+                mgmt_connection=None, ac_position=0, evcc_version="",
+                energy=None):
         m = MagicMock()
         m.service_name = service_name
         m.device_instance = device_instance

@@ -119,6 +119,8 @@ class LoadpointSync:
                         service_name, di, lp.title, bus=self.bus_factory(),
                         mgmt_connection=self.mgmt_connection,
                         ac_position=self.ac_position,
+                        evcc_version=self.client.version,
+                        energy=self.store.energy_counter(lp.title),
                     )
                 except Exception:
                     logger.exception(
@@ -134,6 +136,14 @@ class LoadpointSync:
                 svc.update(lp)
             except Exception:
                 logger.exception("Update failed for loadpoint %r", lp.title)
+            try:
+                # Only writes when the counter moved materially (see
+                # EnergyCounter.dirty), so /data does not see a write per poll.
+                self.store.save_energy(lp.title, svc.energy)
+            except Exception:
+                logger.exception(
+                    "Could not persist the energy counter for %r", lp.title,
+                )
 
         # N1: transition-tracked disconnect - mark_disconnected fires on the
         # edge only, not every tick while a loadpoint stays absent.

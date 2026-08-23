@@ -17,6 +17,34 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   without them the new GUI showed no session energy and no charging time.
   The legacy `/Ac/Energy/Forward` and `/ChargingTime` paths are unchanged.
 
+- Richer `/Status` and `/Mode`: the Venus GUI now shows *Waiting for sun*,
+  *Waiting for start*, *Charged* and *Switching to single/three phase* instead
+  of only connected/charging, and a running EVCC plan reports as *Scheduled*.
+  Derived from EVCC fields the bridge already polls.
+- `/Model`, `/Serial` and `/FirmwareVersion` (the running EVCC version) so the
+  chargers are identifiable in the VRM device list.
+- **Energy counter continuity** (`energy.py`): `/Ac/Energy/Forward` is now
+  published as `source + offset` instead of EVCC's raw counter. This keeps the
+  counter monotonic and continuous when the source field changes, when EVCC is
+  reinstalled and its meters restart, and when this bridge takes over a
+  DeviceInstance from a legacy install. Without it VRM either books the step as
+  energy charged in one hour, or - above its 250 kWh plausibility limit -
+  discards the reading and stops counting that charger until its logger
+  restarts.
+- `seed_state.py --adopt-counters` reads `/Ac/Energy/Forward` from the legacy
+  services still running under the seeded DeviceInstances, so the new bridge
+  continues those counters.
+- `dbus-evcc.py --plan`: dry run showing per loadpoint which DeviceInstance it
+  would use and which counter value it would publish first. Touches neither the
+  D-Bus nor `state.json`.
+- `migrate_from_lp.py` prints a ready-to-paste `seed_state.py` line for every
+  install it refuses to map automatically.
+
+### Changed
+- `state.json` is written in a v2 format that carries the energy state next to
+  the DeviceInstance. v1 files are read as before and upgraded on the next
+  write, so no migration step is needed.
+
 ### Fixed
 - `chargeDuration` is now read in the unit EVCC actually sends. Up to some
   release it was Go nanoseconds; EVCC 0.307.1 sends plain seconds, which the

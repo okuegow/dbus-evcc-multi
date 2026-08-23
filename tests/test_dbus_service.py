@@ -3,16 +3,24 @@ from unittest.mock import MagicMock
 from dbus_service import (
     MODE_AUTO,
     MODE_MANUAL,
+    MODE_SCHEDULED,
+    STATUS_CHARGED,
     STATUS_CHARGING,
     STATUS_CONNECTED,
     STATUS_DISCONNECTED,
+    STATUS_SWITCHING_TO_1P,
+    STATUS_SWITCHING_TO_3P,
+    STATUS_WAITING_FOR_START,
+    STATUS_WAITING_FOR_SUN,
     LoadpointDbusService,
+    evcc_mode,
+    evcc_status,
 )
 from evcc_api import Loadpoint
 
 
 def _make_svc(monkeypatch, deviceinstance=56, title="HeatingElement",
-              ac_position=0):
+              ac_position=0, evcc_version=""):
     fake_vedbus = MagicMock()
     fake_vedbus.__enter__ = MagicMock(return_value=fake_vedbus)
     fake_vedbus.__exit__ = MagicMock(return_value=False)
@@ -34,6 +42,7 @@ def _make_svc(monkeypatch, deviceinstance=56, title="HeatingElement",
         title=title,
         bus=fake_bus,
         ac_position=ac_position,
+        evcc_version=evcc_version,
     )
     return svc, fake_vedbus, captured
 
@@ -103,9 +112,11 @@ def test_update_disconnected_preserves_cumulative_counters(monkeypatch):
 
 
 def test_update_connected_not_charging(monkeypatch):
+    """Connected, idle, charging enabled by the user -> plain 'Connected'."""
     svc, vedbus, _ = _make_svc(monkeypatch)
     vedbus.__getitem__.return_value = 0
-    lp = Loadpoint(title="HeatingElement", connected=True, charging=False, mode="pv")
+    lp = Loadpoint(title="HeatingElement", connected=True, charging=False,
+                   mode="now", enabled=True)
     svc.update(lp)
     sets = dict(c.args for c in vedbus.__setitem__.call_args_list)
     assert sets["/Status"] == STATUS_CONNECTED
@@ -286,7 +297,8 @@ def test_unknown_mode_falls_back_to_manual_with_start(monkeypatch):
     sets = dict(c.args for c in vedbus.__setitem__.call_args_list)
     assert sets["/Mode"] == MODE_MANUAL
     assert sets["/StartStop"] == 1
-    assert sets["/Status"] == STATUS_CONNECTED
+    # Not enabled by EVCC -> the GUI says why it is idle.
+    assert sets["/Status"] == STATUS_WAITING_FOR_START
 
 
 def test_minpv_mode_treated_as_pv(monkeypatch):
@@ -376,3 +388,63 @@ def test_session_values_published_while_disconnected(monkeypatch):
     sets = dict(c.args for c in vedbus.__setitem__.call_args_list)
     assert sets["/Session/Energy"] == 0.0
     assert sets["/Session/Time"] == 0
+
+
+# --- Venus status/mode mapping -------------------------------------------
+
+def _lp(**kw):
+    base = dict(title="Carport", connected=True, charging=False, mode="now",
+                enabled=True)
+    base.update(kw)
+    return Loadpoint(**base)
+
+
+def test_status_disconnected_wins_over_everything():
+    assert evcc_status(_lp(connected=False, charging=True)) == STATUS_DISCONNECTED
+
+
+def test_status_charging():
+    assert evcc_status(_lp(charging=True)) == STATUS_CHARGING
+
+
+def test_status_phase_switch_while_charging():
+    assert evcc_status(_lp(charging=True, phase_action="scale3p")) == STATUS_SWITCHING_TO_3P
+    assert evcc_status(_lp(charging=True, phase_action="scale1p")) == STATUS_SWITCHING_TO_1P
+
+
+def test_status_charged_when_vehicle_reached_its_limit():
+    assert evcc_status(_lp(vehicle_soc=80.0, limit_soc=80.0)) == STATUS_CHARGED
+
+
+def test_status_not_charged_without_vehicle_soc():
+    """vehicleSoc is 0 for loadpoints without a vehicle (heat pump, heating
+    element). That must not read as 'Charged'."""
+    assert evcc_status(_lp(vehicle_soc=0.0, limit_soc=100.0)) == STATUS_CONNECTED
+
+
+def test_status_waiting_for_sun_in_pv_modes():
+    assert evcc_status(_lp(mode="pv", enabled=False)) == STATUS_WAITING_FOR_SUN
+    assert evcc_status(_lp(mode="minpv", enabled=False)) == STATUS_WAITING_FOR_SUN
+
+
+def test_status_waiting_for_start_when_evcc_disabled_it():
+    assert evcc_status(_lp(mode="off", enabled=False)) == STATUS_WAITING_FOR_START
+
+
+def test_mode_scheduled_beats_pv():
+    assert evcc_mode(_lp(mode="pv", plan_active=True)) == MODE_SCHEDULED
+    assert evcc_mode(_lp(mode="pv")) == MODE_AUTO
+    assert evcc_mode(_lp(mode="now")) == MODE_MANUAL
+
+
+def test_identity_paths_published(monkeypatch):
+    svc, vedbus, _ = _make_svc(monkeypatch)
+    paths = _added_paths(vedbus)
+    assert paths["/Model"] == "EVCC loadpoint"
+    assert paths["/Serial"] == "evcc-HeatingElement"
+    assert paths["/FirmwareVersion"] == "unknown"
+
+
+def test_firmware_version_reports_evcc_version(monkeypatch):
+    svc, vedbus, _ = _make_svc(monkeypatch, evcc_version="0.307.1")
+    assert _added_paths(vedbus)["/FirmwareVersion"] == "0.307.1"

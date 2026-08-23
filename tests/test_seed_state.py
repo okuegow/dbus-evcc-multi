@@ -5,6 +5,12 @@ import pytest
 from seed_state import main, parse_pairs
 
 
+
+def _di_map(path):
+    """title -> DeviceInstance from the v2 state file."""
+    data = json.loads(path.read_text() if hasattr(path, "read_text") else path)
+    return {t: r["deviceinstance"] for t, r in data["loadpoints"].items()}
+
 def test_parse_pairs_single():
     assert parse_pairs(["HeatingElement:56"]) == {"HeatingElement": 56}
 
@@ -52,7 +58,7 @@ def test_main_writes_state_file(tmp_path, monkeypatch, capsys):
     assert rc == 0
     state_path = tmp_path / "state.json"
     assert state_path.exists()
-    data = json.loads(state_path.read_text())
+    data = _di_map(state_path)
     assert data == {"HeatingElement": 56, "Wallbox": 49}
 
 

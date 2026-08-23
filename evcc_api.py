@@ -28,6 +28,12 @@ class Loadpoint:
     charged_energy: float = 0.0
     charge_total_import: float = 0.0
     charge_duration_s: int = 0
+    enabled: bool = False
+    pv_action: str = ""
+    phase_action: str = ""
+    plan_active: bool = False
+    vehicle_soc: float = 0.0
+    limit_soc: float = 0.0
 
 
 # EVCC changed the unit of chargeDuration: older releases marshalled Go's
@@ -83,6 +89,12 @@ def _parse_loadpoints(state: dict) -> List[Loadpoint]:
             charged_energy=float(raw.get("chargedEnergy") or 0.0),
             charge_total_import=float(raw.get("chargeTotalImport") or 0.0),
             charge_duration_s=_duration_seconds(raw.get("chargeDuration")),
+            enabled=bool(raw.get("enabled", False)),
+            pv_action=str(raw.get("pvAction") or ""),
+            phase_action=str(raw.get("phaseAction") or ""),
+            plan_active=bool(raw.get("planActive", False)),
+            vehicle_soc=float(raw.get("vehicleSoc") or 0.0),
+            limit_soc=float(raw.get("effectiveLimitSoc") or 0.0),
         ))
     return out
 
@@ -91,6 +103,8 @@ class EvccClient:
     def __init__(self, host: str, timeout: float = 10.0) -> None:
         self.host = host
         self.timeout = timeout
+        # Last EVCC version seen in /api/state; published as /FirmwareVersion.
+        self.version: str = ""
         self._session: Optional[requests.Session] = None
 
     @property
@@ -120,4 +134,6 @@ class EvccClient:
             raise EvccUnreachable(
                 "%s: invalid JSON: %s" % (self.state_url, e)
             ) from e
+        if isinstance(data, dict) and data.get("version"):
+            self.version = str(data["version"])
         return _parse_loadpoints(data)

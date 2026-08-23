@@ -120,6 +120,17 @@ def format_proposal_row(idx: int, p: Proposal) -> str:
     )
 
 
+def _ask(prompt, question: str) -> str:
+    """Ask, but survive a closed stdin. Running the migrator from a script or
+    over `ssh host cmd` used to end in an EOFError traceback instead of the
+    manual-mapping hint."""
+    try:
+        return prompt(question)
+    except EOFError:
+        print("(no input available - skipped)")
+        return ""
+
+
 def decide_proposal(
     proposal: Proposal,
     *,
@@ -158,8 +169,9 @@ def decide_proposal(
         else:
             hint = "EVCC unreachable or no titles known"
         print("  %s" % hint)
-        ans = prompt(
-            "Type EVCC title for DI %d (blank to skip): " % proposal.deviceinstance
+        ans = _ask(
+            prompt,
+            "Type EVCC title for DI %d (blank to skip): " % proposal.deviceinstance,
         ).strip()
         if not ans:
             return None, False
@@ -248,6 +260,23 @@ def run_uninstall_scripts(
                 file=sys.stderr,
             )
     return failures
+
+
+def _print_manual_seed_hint(proposals) -> None:
+    """Print a ready-to-paste seed_state.py line for everything we could not
+    map automatically. Guessing here would attach one device's VRM history to
+    another, so the operator does it - but they should not have to look up the
+    syntax."""
+    if not proposals:
+        return
+    print("\nMap these by hand (the DeviceInstance carries the VRM history):")
+    for p in proposals:
+        name = p.install.custom_name or p.install.path.name
+        print("  DI %-3d  %s" % (p.deviceinstance, name))
+    args = " ".join('"<EVCC title>:%d"' % p.deviceinstance for p in proposals)
+    print("\n  python3 seed_state.py --adopt-counters %s" % args)
+    print("  (run it while the old bridges are still running, so their energy")
+    print("   counters are carried over instead of restarting)")
 
 
 def main(argv=None) -> int:
@@ -379,7 +408,13 @@ def main(argv=None) -> int:
 
     if not accepted:
         print("\nNothing accepted. state.json unchanged.")
+        _print_manual_seed_hint(proposals)
         return 0
+
+    undecided = [p for p in proposals
+                 if p.deviceinstance not in {di for _, di, _ in accepted}]
+    if undecided:
+        _print_manual_seed_hint(undecided)
 
     print("\nWill seed %d mapping(s) into %s:" % (len(accepted), state_path))
     for title, di, _ in accepted:
@@ -392,8 +427,8 @@ def main(argv=None) -> int:
     # confirm once more before writing. Catches typos and accidental
     # off-by-one selections.
     if saw_override and not args.auto:
-        ans = input(
-            "\nConfirm seeding above %d entries? [Y/n] " % len(accepted)
+        ans = _ask(
+            input, "\nConfirm seeding above %d entries? [Y/n] " % len(accepted),
         ).strip()
         if ans.lower() in ("n", "no", "nein"):
             print("Aborted by operator. Nothing written.")

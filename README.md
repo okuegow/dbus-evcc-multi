@@ -109,6 +109,30 @@ The guided `setup.sh` fills these in for you.
 
 ## Coming from an older single-charger setup?
 
+**The DeviceInstance is the device identity in VRM, and `/Ac/Energy/Forward`
+feeds its energy statistics.** Get either wrong and one charger inherits
+another's history, or VRM books the counter step as energy charged. The order
+that avoids both, while the old bridges are still running:
+
+```sh
+python3 /data/dbus-evcc-multi/migrate_from_lp.py --dry-run   # what maps to what
+python3 /data/dbus-evcc-multi/seed_state.py --adopt-counters \
+    "Carport:49" "Heat pump:55" "Heating element:56"
+# now uninstall the old bridges, then:
+python3 /data/dbus-evcc-multi/dbus-evcc.py --plan            # nothing is written
+/data/dbus-evcc-multi/install.sh
+```
+
+Two things the legacy `uninstall.sh` does not do, and which bite later:
+
+- It leaves the old bridge's line in `/data/rc.local`, so a reboot brings it
+  back and it grabs the DeviceInstance again. Our installer warns about
+  leftovers; delete those lines.
+- It removes the service link but lets the running python process live on.
+  Check with `ps | grep dbus-evcc` and kill what is left before starting this
+  bridge, otherwise the preflight sees the DeviceInstances as occupied.
+
+
 Earlier setups ran one bridge per charger under `/data/dbus-evcc-<name>/`. The
 installer detects those and offers to migrate them so your chargers keep their
 existing VRM history. You can also run the migrator yourself (after logging in):

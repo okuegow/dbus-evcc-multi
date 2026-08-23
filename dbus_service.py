@@ -17,17 +17,27 @@ import os
 import platform
 import sys
 
+from energy import EnergyCounter
 from evcc_api import Loadpoint
 from log_setup import LOGGER_NAME
 
 logger = logging.getLogger(LOGGER_NAME)
 
+# Venus OS Evcs_Status (gui-v2 src/enums.h). We only ever set the subset that
+# is derivable from EVCC's loadpoint state; the error codes belong to real
+# wallbox hardware.
 STATUS_DISCONNECTED = 0
 STATUS_CONNECTED = 1
 STATUS_CHARGING = 2
+STATUS_CHARGED = 3
+STATUS_WAITING_FOR_SUN = 4
+STATUS_WAITING_FOR_START = 6
+STATUS_SWITCHING_TO_3P = 22
+STATUS_SWITCHING_TO_1P = 23
 
 MODE_MANUAL = 0
 MODE_AUTO = 1
+MODE_SCHEDULED = 2
 
 _VICTRON_VELIB = "/opt/victronenergy/dbus-systemcalc-py/ext/velib_python"
 if os.path.isdir(_VICTRON_VELIB) and _VICTRON_VELIB not in sys.path:
@@ -63,16 +73,60 @@ def _fmt_int(_path, value):
     return str(value)
 
 
+def evcc_status(lp: Loadpoint) -> int:
+    """Map an EVCC loadpoint onto a Venus OS Evcs_Status code.
+
+    Only states EVCC actually reports are produced. Deliberately NOT mapped:
+    Evcs_Status_LowStateOfCharge (7), which on Victron hardware means the
+    SYSTEM battery is too low to charge - EVCC's minSocNotReached is about the
+    vehicle and means the opposite (charge now, regardless of PV).
+    """
+    if not lp.connected:
+        return STATUS_DISCONNECTED
+
+    if lp.charging:
+        if lp.phase_action == "scale3p":
+            return STATUS_SWITCHING_TO_3P
+        if lp.phase_action == "scale1p":
+            return STATUS_SWITCHING_TO_1P
+        return STATUS_CHARGING
+
+    # Connected, not charging. Why not?
+    if lp.vehicle_soc > 0 and lp.limit_soc > 0 and lp.vehicle_soc >= lp.limit_soc:
+        return STATUS_CHARGED
+    if "pv" in lp.mode:
+        # minpv/pv with no charge running = waiting for surplus.
+        return STATUS_WAITING_FOR_SUN
+    if not lp.enabled:
+        return STATUS_WAITING_FOR_START
+    return STATUS_CONNECTED
+
+
+def evcc_mode(lp: Loadpoint) -> int:
+    """Map an EVCC loadpoint mode onto a Venus OS Evcs_Mode code."""
+    if lp.plan_active:
+        return MODE_SCHEDULED
+    if "pv" in lp.mode:
+        return MODE_AUTO
+    return MODE_MANUAL
+
+
 class LoadpointDbusService:
     PRODUCT_VERSION = "v2.2"
 
     def __init__(self, service_name, device_instance, title, bus,
-                 mgmt_connection="EVCC REST API", ac_position=0):
+                 mgmt_connection="EVCC REST API", ac_position=0,
+                 evcc_version="", energy=None):
         self.service_name = service_name
         self.device_instance = device_instance
         self.title = title
         self.mgmt_connection = mgmt_connection
         self.ac_position = ac_position
+        self.evcc_version = evcc_version
+        # Keeps /Ac/Energy/Forward monotonic and continuous. Without one we
+        # would publish EVCC's raw counter, which jumps whenever the source
+        # field or the underlying install changes (see energy.py).
+        self.energy = energy if energy is not None else EnergyCounter(title=title)
         # register=False -> all mandatory paths added first, then explicit
         # register() so dbusmonitor.py never sees an incomplete service.
         self._svc = VeDbusService(service_name, bus=bus, register=False)
@@ -94,6 +148,12 @@ class LoadpointDbusService:
         s.add_path("/ProductName", "EVCC Charger")
         s.add_path("/CustomName", self.title)
         s.add_path("/HardwareVersion", 2)
+        # VRM logs these three as device identity (vrmlogger/datalist.py).
+        # There is no hardware behind us, so Model is constant and Serial is
+        # derived from the loadpoint title, which is our identity anyway.
+        s.add_path("/Model", "EVCC loadpoint")
+        s.add_path("/Serial", "evcc-%s" % self.title)
+        s.add_path("/FirmwareVersion", self.evcc_version or "unknown")
         s.add_path("/Connected", 1)
         s.add_path("/UpdateIndex", 0)
         s.add_path("/Position", self.ac_position)
@@ -138,22 +198,10 @@ class LoadpointDbusService:
             s["/SetCurrent"] = total_current
             s["/MaxCurrent"] = int(lp.effective_max_current)
 
-            if "pv" in lp.mode:
-                s["/Mode"] = MODE_AUTO
-                s["/StartStop"] = 1
-            elif lp.mode == "off":
-                s["/Mode"] = MODE_MANUAL
-                s["/StartStop"] = 0
-            else:
-                s["/Mode"] = MODE_MANUAL
-                s["/StartStop"] = 1
+            s["/Mode"] = evcc_mode(lp)
+            s["/StartStop"] = 0 if lp.mode == "off" else 1
 
-            if not lp.connected:
-                status = STATUS_DISCONNECTED
-            elif lp.charging:
-                status = STATUS_CHARGING
-            else:
-                status = STATUS_CONNECTED
+            status = evcc_status(lp)
             s["/Status"] = status
             s["/Connected"] = 1
 
@@ -171,11 +219,13 @@ class LoadpointDbusService:
                 candidate = None
 
             if candidate is not None:
-                # /Ac/Energy/Forward must be monotonic for VRM. Guard against
-                # transient source switches (e.g. EVCC briefly returning
-                # chargeTotalImport: null) rolling the counter backwards.
+                # EnergyCounter handles monotonicity, source switches and
+                # taking over a legacy service's counter. The extra max()
+                # against the published value guards a restart within the
+                # same source.
+                published = self.energy.value(candidate)
                 previous = float(s["/Ac/Energy/Forward"] or 0.0)
-                s["/Ac/Energy/Forward"] = max(candidate, previous)
+                s["/Ac/Energy/Forward"] = max(published, previous)
 
             # Session values come straight from EVCC and reset with the
             # session, so they are published in every state - including

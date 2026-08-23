@@ -157,3 +157,76 @@ def test_seed_rolls_back_in_memory_on_flush_failure(tmp_path, monkeypatch):
     assert s.snapshot() == snapshot_before
     # Subsequent allocation still uses the lowest-free DI (not 41 + ghost)
     assert s.get_or_allocate("NewTitle") == 41
+
+
+# --- v2 format: energy continuity ----------------------------------------
+
+def test_reads_legacy_v1_state_file(tmp_path):
+    p = tmp_path / "state.json"
+    p.write_text('{"Carport": 49, "Heizstab": 56}')
+    store = StateStore(p, di_range=(40, 59))
+    assert store.snapshot() == {"Carport": 49, "Heizstab": 56}
+
+
+def test_v1_file_is_rewritten_as_v2_on_next_write(tmp_path):
+    import json
+    p = tmp_path / "state.json"
+    p.write_text('{"Carport": 49}')
+    store = StateStore(p, di_range=(40, 59))
+    store.get_or_allocate("Waermepumpe")
+    data = json.loads(p.read_text())
+    assert data["version"] == 2
+    assert data["loadpoints"]["Carport"]["deviceinstance"] == 49
+
+
+def test_energy_counter_is_empty_for_unknown_title(tmp_path):
+    store = StateStore(tmp_path / "state.json", di_range=(40, 59))
+    counter = store.energy_counter("Carport")
+    assert counter.offset == 0.0
+    assert counter.source is None
+
+
+def test_seed_energy_requires_a_known_title(tmp_path):
+    import pytest
+    store = StateStore(tmp_path / "state.json", di_range=(40, 59))
+    with pytest.raises(InvalidStateFile):
+        store.seed_energy({"Carport": 812.4})
+
+
+def test_seeded_counter_survives_a_reload(tmp_path):
+    p = tmp_path / "state.json"
+    store = StateStore(p, di_range=(40, 59))
+    store.seed({"Carport": 49})
+    store.seed_energy({"Carport": 812.4})
+
+    reloaded = StateStore(p, di_range=(40, 59))
+    counter = reloaded.energy_counter("Carport")
+    assert counter.adopt == 812.4
+    # First publish continues the old device instead of EVCC's own total.
+    assert round(counter.value(17010.75), 3) == 812.4
+
+
+def test_save_energy_persists_offset_and_clears_adopt(tmp_path):
+    p = tmp_path / "state.json"
+    store = StateStore(p, di_range=(40, 59))
+    store.seed({"Carport": 49})
+    store.seed_energy({"Carport": 812.4})
+
+    counter = store.energy_counter("Carport")
+    counter.value(17010.75)
+    assert store.save_energy("Carport", counter) is True
+
+    reloaded = StateStore(p, di_range=(40, 59))
+    restored = reloaded.energy_counter("Carport")
+    assert restored.adopt is None
+    assert round(restored.value(17010.75), 3) == 812.4
+    assert reloaded.snapshot()["Carport"] == 49
+
+
+def test_save_energy_skips_write_when_counter_is_clean(tmp_path):
+    store = StateStore(tmp_path / "state.json", di_range=(40, 59))
+    store.seed({"Carport": 49})
+    counter = store.energy_counter("Carport")
+    counter.value(100.0)
+    store.save_energy("Carport", counter)
+    assert store.save_energy("Carport", counter) is False

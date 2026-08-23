@@ -36,6 +36,21 @@ if [ ! -f "$filename" ]; then
 fi
 grep -qxF "$SCRIPT_DIR/install.sh" "$filename" || echo "$SCRIPT_DIR/install.sh" >> "$filename"
 
+# The legacy single-loadpoint bridges leave their own line in rc.local; their
+# uninstall.sh does not remove it. Left there, they come back on the next
+# reboot, grab the DeviceInstances we just took over, and our preflight then
+# refuses to start - the chargers vanish from VRM until someone looks.
+leftovers=$(grep -E "^/data/dbus-evcc-[^/]+/install\.sh$" "$filename" \
+    | grep -v "^$SCRIPT_DIR/install.sh$" || true)
+if [ -n "$leftovers" ]; then
+    echo
+    echo "WARNING: $filename still starts other dbus-evcc bridges at boot:"
+    echo "$leftovers" | while read -r line; do echo "    $line"; done
+    echo "  They will re-register their DeviceInstances after a reboot and"
+    echo "  collide with this bridge. Remove those lines once you are done"
+    echo "  migrating."
+fi
+
 if [ "$FIRST_INSTALL" = "1" ]; then
     echo "Install complete (service is DOWN, will NOT auto-start)."
     echo
