@@ -112,7 +112,7 @@ def evcc_mode(lp: Loadpoint) -> int:
 
 
 class LoadpointDbusService:
-    PRODUCT_VERSION = "v2.2"
+    PRODUCT_VERSION = "v2.4"
 
     def __init__(self, service_name, device_instance, title, bus,
                  mgmt_connection="EVCC REST API", ac_position=0,

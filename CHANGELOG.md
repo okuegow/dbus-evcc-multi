@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.4] - 2026-08-24
 
 ### Added
 - `AcPosition` setting in `config.ini` (`0` = AC-Out, default; `1` = AC-In).
@@ -89,4 +89,5 @@ First public release.
   multilog logging.
 - Test suite (~177 tests) and CI (pytest matrix + shellcheck).
 
+[2.4]: https://github.com/okuegow/dbus-evcc-multi/releases/tag/v2.4
 [2.3]: https://github.com/okuegow/dbus-evcc-multi/releases/tag/v2.3

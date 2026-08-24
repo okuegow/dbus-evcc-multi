@@ -61,7 +61,7 @@ ssh root@<gx-device>
 
 ```sh
 wget -O /tmp/dbus-evcc-multi.tar.gz \
-  https://github.com/okuegow/dbus-evcc-multi/releases/download/v2.3/dbus-evcc-multi-v2.3.tar.gz
+  https://github.com/okuegow/dbus-evcc-multi/releases/download/v2.4/dbus-evcc-multi-v2.4.tar.gz
 tar xzf /tmp/dbus-evcc-multi.tar.gz -C /data
 /data/dbus-evcc-multi/setup.sh
 ```
@@ -78,7 +78,7 @@ After logging in (step 1 above), run on the device:
 ```sh
 # download & extract
 wget -O /tmp/dbus-evcc-multi.tar.gz \
-  https://github.com/okuegow/dbus-evcc-multi/releases/download/v2.3/dbus-evcc-multi-v2.3.tar.gz
+  https://github.com/okuegow/dbus-evcc-multi/releases/download/v2.4/dbus-evcc-multi-v2.4.tar.gz
 tar xzf /tmp/dbus-evcc-multi.tar.gz -C /data
 
 # set your EVCC address, then install and watch the log

@@ -14,6 +14,9 @@ EXCLUDES=(
   --exclude='*/tests' --exclude='*/.venv' --exclude='*/__pycache__'
   --exclude='*/state.json' --exclude='*/.git' --exclude='*/.gitignore'
   --exclude='*/.pytest_cache' --exclude='.DS_Store' --exclude='*/service/down'
+  # .installed marks a device where install.sh already ran; shipping it
+  # would make a fresh install skip the guarded first-install path.
+  --exclude='*/.installed'
 )
 
 mkdir -p "$PARENT/dist"
