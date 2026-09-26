@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5] - 2026-09-26
+
+### Fixed
+- Restarting or stopping the service (`svc -t`, `svc -d`, `restart.sh`,
+  `setup.sh`) no longer leaves the old bridge running as an orphan. Since 2.4
+  `service/run` started python without `exec` to implement the 30 s backoff, so
+  daemontools signalled only the shell. The orphan kept its D-Bus names and
+  kept serving the old configuration, while every new start failed with a
+  DeviceInstance collision and retried every 30 s. A changed EVCC host in
+  `config.ini` was therefore silently not applied. `service/run` execs python
+  again; the 30 s backoff after a failed start (non-zero exit, exception or
+  failed import) now lives in `dbus-evcc.py`.
+
 ## [2.4] - 2026-08-24
 
 ### Added

@@ -8,8 +8,38 @@ from __future__ import annotations
 import argparse
 import configparser
 import ipaddress
+import sys
+import time
+import traceback
 from pathlib import Path
 from typing import NamedTuple
+
+
+# daemontools respawns a service the moment it exits. After a failed start
+# (DeviceInstance collision, bad VRM_TUNNEL config, crash) a hot respawn loop
+# costs enough CPU to trip the Venus load watchdog (/etc/watchdog.conf:
+# max-load-5 = 10, max-load-15 = 6), which reboots the GX. So pause first.
+# The pause lives here, not in service/run: the run script must `exec` python,
+# otherwise `svc -t`/`svc -d` kill only the shell and orphan the bridge.
+BACKOFF_SECONDS = 30
+
+
+def run_with_backoff(main, sleep=None) -> int:
+    """Run main(); on a non-zero exit or an exception wait BACKOFF_SECONDS.
+
+    main() must do its own application imports: an ImportError at module
+    level would exit before this guard runs and respawn hot.
+    """
+    try:
+        rc = main()
+    except Exception:
+        traceback.print_exc()
+        rc = 1
+    if rc:
+        print("dbus-evcc-multi exited with code %d - waiting %ds before restart"
+              % (rc, BACKOFF_SECONDS), file=sys.stderr, flush=True)
+        (sleep or time.sleep)(BACKOFF_SECONDS)
+    return rc
 
 
 class Settings(NamedTuple):

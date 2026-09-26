@@ -18,18 +18,18 @@ from cli import (
     mgmt_connection_string,
     parse_args,
     read_config,
+    run_with_backoff,
     resolve_settings,
     resolve_tunnel_settings,
 )
-from evcc_api import EvccClient
-from log_setup import configure_logging
-from state_store import StateStore
-from sync import LoadpointSync, preflight_check_di_collisions
 
 
 def _print_plan(settings, config_path, logger) -> int:
     """Dry run: what would the first start publish? Reads EVCC and state.json,
     touches neither the D-Bus nor state.json."""
+    from evcc_api import EvccClient
+    from state_store import StateStore
+
     here = Path(__file__).resolve().parent
     store = StateStore(here / "state.json", di_range=(settings.di_lo, settings.di_hi))
     client = EvccClient(host=settings.host or "0.0.0.0:0")
@@ -74,6 +74,13 @@ def _print_plan(settings, config_path, logger) -> int:
 
 
 def main(argv=None) -> int:
+    # Application imports live here, not at module level, so that an import
+    # failure still goes through run_with_backoff (see cli.py).
+    from evcc_api import EvccClient
+    from log_setup import configure_logging
+    from state_store import StateStore
+    from sync import LoadpointSync, preflight_check_di_collisions
+
     args = parse_args(argv if argv is not None else sys.argv[1:])
     logger = configure_logging(debug=args.debug)
 
@@ -158,4 +165,4 @@ def main(argv=None) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(run_with_backoff(main))
