@@ -8,6 +8,13 @@ set -e
 chmod 755 "$SCRIPT_DIR/restart.sh" "$SCRIPT_DIR/uninstall.sh"
 chmod 755 "$SCRIPT_DIR/service/run" "$SCRIPT_DIR/service/log/run"
 
+# config.ini belongs to the operator. The tarball ships only config.ini.example,
+# so extracting a new release over /data never resets the settings.
+if [ ! -f "$SCRIPT_DIR/config.ini" ]; then
+    cp "$SCRIPT_DIR/config.ini.example" "$SCRIPT_DIR/config.ini"
+    echo "Created $SCRIPT_DIR/config.ini from config.ini.example"
+fi
+
 # Ensure log directory exists (multilog needs it writable)
 mkdir -p "/data/log/$SERVICE_NAME"
 

@@ -10,8 +10,9 @@
 # similar and skip install.sh (it expects /service + /data/log/* paths).
 #
 # This script does NOT run install.sh on the remote, on purpose. After scp+tar,
-# log in manually, edit config.ini (set ONPREMISE/Host), optionally seed,
-# then run install.sh by hand. That keeps the human in the loop for the first
+# log in manually, run install.sh by hand (it creates config.ini from
+# config.ini.example), edit config.ini (set ONPREMISE/Host), optionally seed,
+# then start the service. That keeps the human in the loop for the first
 # install on an unfamiliar host.
 #
 set -euo pipefail
@@ -51,9 +52,10 @@ Recommended (guided, interactive - needs a TTY):
   ssh -t $REMOTE '$REMOTE_DIR/dbus-evcc-multi/setup.sh'
 
 Manual alternative:
-  1. ssh $REMOTE 'vi $REMOTE_DIR/dbus-evcc-multi/config.ini'   # set ONPREMISE/Host
-  2. (optional, migration) ssh $REMOTE 'python3 $REMOTE_DIR/dbus-evcc-multi/migrate_from_lp.py'
-  3. ssh $REMOTE '$REMOTE_DIR/dbus-evcc-multi/install.sh'
+  1. ssh $REMOTE '$REMOTE_DIR/dbus-evcc-multi/install.sh'   # creates config.ini on first install
+  2. ssh $REMOTE 'vi $REMOTE_DIR/dbus-evcc-multi/config.ini'   # set ONPREMISE/Host
+  3. (optional, migration) ssh $REMOTE 'python3 $REMOTE_DIR/dbus-evcc-multi/migrate_from_lp.py'
   3b. (optional tunnel) ssh $REMOTE '$REMOTE_DIR/dbus-evcc-multi/dbus-vrm-tunnel/install.sh'
-  4. ssh $REMOTE 'tail -F /data/log/dbus-evcc-multi/current | tai64nlocal'
+  4. ssh $REMOTE 'rm $REMOTE_DIR/dbus-evcc-multi/service/down; svc -u /service/dbus-evcc-multi'
+  5. ssh $REMOTE 'tail -F /data/log/dbus-evcc-multi/current | tai64nlocal'
 EOF

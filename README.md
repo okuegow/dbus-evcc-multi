@@ -61,7 +61,7 @@ ssh root@<gx-device>
 
 ```sh
 wget -O /tmp/dbus-evcc-multi.tar.gz \
-  https://github.com/okuegow/dbus-evcc-multi/releases/download/v2.5/dbus-evcc-multi-v2.5.tar.gz
+  https://github.com/okuegow/dbus-evcc-multi/releases/download/v2.6/dbus-evcc-multi-v2.6.tar.gz
 tar xzf /tmp/dbus-evcc-multi.tar.gz -C /data
 /data/dbus-evcc-multi/setup.sh
 ```
@@ -78,12 +78,14 @@ After logging in (step 1 above), run on the device:
 ```sh
 # download & extract
 wget -O /tmp/dbus-evcc-multi.tar.gz \
-  https://github.com/okuegow/dbus-evcc-multi/releases/download/v2.5/dbus-evcc-multi-v2.5.tar.gz
+  https://github.com/okuegow/dbus-evcc-multi/releases/download/v2.6/dbus-evcc-multi-v2.6.tar.gz
 tar xzf /tmp/dbus-evcc-multi.tar.gz -C /data
 
-# set your EVCC address, then install and watch the log
-vi /data/dbus-evcc-multi/config.ini          # ONPREMISE/Host = <ip>:7070
+# install (creates config.ini from config.ini.example), set your EVCC
+# address, then start the service and watch the log
 /data/dbus-evcc-multi/install.sh
+vi /data/dbus-evcc-multi/config.ini          # ONPREMISE/Host = <ip>:7070
+rm /data/dbus-evcc-multi/service/down && svc -u /service/dbus-evcc-multi
 tail -F /data/log/dbus-evcc-multi/current | tai64nlocal
 ```
 
@@ -91,6 +93,13 @@ On a first install the service starts in a "down" state so you can set the
 config before it runs. `install.sh` registers itself so it survives Venus OS
 firmware updates.
 </details>
+
+**Updating:** download and extract the new release over `/data` exactly as
+above, then run `/data/dbus-evcc-multi/install.sh` and
+`svc -t /service/dbus-evcc-multi`. Your `config.ini` and `state.json` are kept:
+the tarball ships only `config.ini.example`. (Re-running `setup.sh` also works,
+but it asks for every setting again; answering the tunnel question with Enter
+switches the VRM tunnel off.)
 
 ## Configuration (`config.ini`)
 
@@ -119,8 +128,10 @@ python3 /data/dbus-evcc-multi/migrate_from_lp.py --dry-run   # what maps to what
 python3 /data/dbus-evcc-multi/seed_state.py --adopt-counters \
     "Carport:49" "Heat pump:55" "Heating element:56"
 # now uninstall the old bridges, then:
+/data/dbus-evcc-multi/install.sh        # first install: creates config.ini, service stays down
+vi /data/dbus-evcc-multi/config.ini     # ONPREMISE/Host = <ip>:7070
 python3 /data/dbus-evcc-multi/dbus-evcc.py --plan            # nothing is written
-/data/dbus-evcc-multi/install.sh
+rm /data/dbus-evcc-multi/service/down && svc -u /service/dbus-evcc-multi
 ```
 
 Two things the legacy `uninstall.sh` does not do, and which bite later:

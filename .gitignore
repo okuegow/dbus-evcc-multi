@@ -1,4 +1,6 @@
 # Runtime artefacts
+# operator settings; the repo and the tarball ship config.ini.example
+/config.ini
 state.json
 state.json.tmp
 state.json.bak
