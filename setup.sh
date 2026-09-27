@@ -77,16 +77,37 @@ echo "ONPREMISE/Host = $host set."
 
 # --- 4. VRM tunnel (optional) --------------------------------------------
 echo; echo "--- 4. VRM tunnel (Control panel button) ---"
-printf "Enable the VRM tunnel? [y/N] "; read -r ans
-case "${ans:-N}" in [yY]*) tunnel=yes ;; *) tunnel=no ;; esac
+# The current settings are the defaults, so a re-run (e.g. after an update)
+# where the operator just presses Enter changes nothing.
+IFS='|' read -r cur_enabled cur_aip cur_tgt cur_pp < <(PYTHONPATH="$SCRIPT_DIR" CONFIG_PATH="$CONFIG" python3 - <<'PY'
+import os
+from pathlib import Path
+from cli import read_config, resolve_tunnel_settings
+try:
+    t = resolve_tunnel_settings(read_config(Path(os.environ["CONFIG_PATH"])))
+    print("%s|%s|%s|%s" % ("yes" if t.enabled else "no", t.advertise_ip,
+                           t.evcc_target, t.proxy_port))
+except Exception:  # invalid or unreadable config: offer the plain defaults
+    print("no||127.0.0.1:7070|8099")
+PY
+) || true
+: "${cur_enabled:=no}" "${cur_aip:=}" "${cur_tgt:=127.0.0.1:7070}" "${cur_pp:=8099}"
+if [ "$cur_enabled" = yes ]; then
+    printf "Enable the VRM tunnel? [Y/n] "; read -r ans
+    case "${ans:-Y}" in [nN]*) tunnel=no ;; *) tunnel=yes ;; esac
+else
+    printf "Enable the VRM tunnel? [y/N] "; read -r ans
+    case "${ans:-N}" in [yY]*) tunnel=yes ;; *) tunnel=no ;; esac
+fi
 if [ "$tunnel" = yes ]; then
     lan=$(ip route get 1.1.1.1 2>/dev/null \
           | awk '{for(i=1;i<=NF;i++) if($i=="src"){print $(i+1); exit}}' || true)
+    def_aip="${cur_aip:-$lan}"
     while :; do
-        printf "AdvertiseIp (LAN IP, NOT 127.x) [%s]: " "${lan:-}"
-        read -r aip; aip="${aip:-$lan}"
-        printf "EvccTarget [127.0.0.1:7070]: "; read -r tgt; tgt="${tgt:-127.0.0.1:7070}"
-        printf "ProxyPort [8099]: "; read -r pp; pp="${pp:-8099}"
+        printf "AdvertiseIp (LAN IP, NOT 127.x) [%s]: " "${def_aip:-}"
+        read -r aip; aip="${aip:-$def_aip}"
+        printf "EvccTarget [%s]: " "$cur_tgt"; read -r tgt; tgt="${tgt:-$cur_tgt}"
+        printf "ProxyPort [%s]: " "$cur_pp"; read -r pp; pp="${pp:-$cur_pp}"
         if python3 "$SCRIPT_DIR/setup_config.py" --config "$CONFIG" set-tunnel \
                --enabled true --advertise-ip "$aip" \
                --evcc-target "$tgt" --proxy-port "$pp"; then
@@ -96,7 +117,9 @@ if [ "$tunnel" = yes ]; then
         echo "Invalid input - please try again."
     done
 else
-    python3 "$SCRIPT_DIR/setup_config.py" --config "$CONFIG" set-tunnel --enabled false
+    # Keep the tunnel parameters, so switching it on again later is just "y".
+    python3 "$SCRIPT_DIR/setup_config.py" --config "$CONFIG" set-tunnel --enabled false \
+        --advertise-ip "$cur_aip" --evcc-target "$cur_tgt" --proxy-port "$cur_pp"
     echo "VRM tunnel disabled."
 fi
 

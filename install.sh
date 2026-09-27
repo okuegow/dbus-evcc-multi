@@ -14,6 +14,11 @@ if [ ! -f "$SCRIPT_DIR/config.ini" ]; then
     cp "$SCRIPT_DIR/config.ini.example" "$SCRIPT_DIR/config.ini"
     echo "Created $SCRIPT_DIR/config.ini from config.ini.example"
 fi
+# A hand-written config.ini, or one from an older release, gets the keys and
+# comments it lacks; values stay. This runs on every boot via rc.local, so a
+# broken config.ini must only warn here - aborting would leave the bridge off.
+python3 "$SCRIPT_DIR/setup_config.py" --config "$SCRIPT_DIR/config.ini" sync-example \
+    || echo "WARNING: could not complete $SCRIPT_DIR/config.ini - please check it."
 
 # Ensure log directory exists (multilog needs it writable)
 mkdir -p "/data/log/$SERVICE_NAME"

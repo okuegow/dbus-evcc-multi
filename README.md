@@ -61,7 +61,7 @@ ssh root@<gx-device>
 
 ```sh
 wget -O /tmp/dbus-evcc-multi.tar.gz \
-  https://github.com/okuegow/dbus-evcc-multi/releases/download/v2.6/dbus-evcc-multi-v2.6.tar.gz
+  https://github.com/okuegow/dbus-evcc-multi/releases/download/v2.7/dbus-evcc-multi-v2.7.tar.gz
 tar xzf /tmp/dbus-evcc-multi.tar.gz -C /data
 /data/dbus-evcc-multi/setup.sh
 ```
@@ -78,7 +78,7 @@ After logging in (step 1 above), run on the device:
 ```sh
 # download & extract
 wget -O /tmp/dbus-evcc-multi.tar.gz \
-  https://github.com/okuegow/dbus-evcc-multi/releases/download/v2.6/dbus-evcc-multi-v2.6.tar.gz
+  https://github.com/okuegow/dbus-evcc-multi/releases/download/v2.7/dbus-evcc-multi-v2.7.tar.gz
 tar xzf /tmp/dbus-evcc-multi.tar.gz -C /data
 
 # install (creates config.ini from config.ini.example), set your EVCC
@@ -97,9 +97,8 @@ firmware updates.
 **Updating:** download and extract the new release over `/data` exactly as
 above, then run `/data/dbus-evcc-multi/install.sh` and
 `svc -t /service/dbus-evcc-multi`. Your `config.ini` and `state.json` are kept:
-the tarball ships only `config.ini.example`. (Re-running `setup.sh` also works,
-but it asks for every setting again; answering the tunnel question with Enter
-switches the VRM tunnel off.)
+the tarball ships only `config.ini.example`. Re-running `setup.sh` works as
+well: every question offers the current setting, so pressing Enter keeps it.
 
 ## Configuration (`config.ini`)
 

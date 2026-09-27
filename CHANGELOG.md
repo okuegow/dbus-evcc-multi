@@ -4,6 +4,25 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7] - 2026-09-27
+
+### Fixed
+- Re-running `setup.sh` no longer switches the VRM tunnel off. The tunnel
+  question defaulted to "no" whatever the config said, so pressing Enter
+  disabled a working tunnel and reset AdvertiseIp, EvccTarget and ProxyPort.
+  Every tunnel prompt now offers the current value, and switching the tunnel
+  off keeps its parameters.
+- `setup.sh` and `setup_config.py` no longer strip the comments from
+  `config.ini`. Edits are written through `config.ini.example`: its comments
+  and order stay, the values are yours, and keys the template does not know
+  are kept.
+
+### Added
+- `install.sh` completes a `config.ini` that lacks keys of the template, for
+  example one written by hand before running `install.sh`, or one from an
+  older release. Values are kept; a complete file is not touched. A broken
+  `config.ini` only produces a warning, because `install.sh` also runs at boot.
+
 ## [2.6] - 2026-09-27
 
 ### Fixed
